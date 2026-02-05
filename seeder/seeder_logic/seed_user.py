@@ -1,35 +1,42 @@
-from apps.access.models import Role,UserRole
-from apps.identity.models import User
-from apps.department.models import Department,UserDepartment
+from django.contrib.auth import get_user_model
 
 from ..seeder_data import SUPER_ADMIN
+from apps.department.models import Department, UserDepartment
+from apps.access.services.role_validation import validate_role_assignment
+from apps.access.services.role_assignment import assign_role_to_user
 
-# --------------------
-# Super Admin
-# --------------------
+User = get_user_model()
+
+
 def seed_super_admin():
+    data = SUPER_ADMIN
+
     user, created = User.objects.get_or_create(
-        username=SUPER_ADMIN["username"],
+        username=data["username"],
         defaults={
-            "email": SUPER_ADMIN["email"],
-            "is_staff": True,
-            "is_superuser": True,
+            "email": data["email"],
+            "is_active": True,
         },
     )
 
     if created:
-        user.set_password(SUPER_ADMIN["password"])
+        user.set_password(data["password"])
         user.save()
 
-    department = Department.objects.get(code=SUPER_ADMIN["department"])
-    role = Role.objects.get(code=SUPER_ADMIN["role"])
-
+    # 1️⃣ Assign department (structural invariant)
+    department = Department.objects.get(code=data["department"])
     UserDepartment.objects.get_or_create(
         user=user,
         department=department,
     )
 
-    UserRole.objects.get_or_create(
+    # 2️⃣ Validate + assign role (NO BYPASS)
+    role = validate_role_assignment(
+        user=user,
+        role_code=data["role"],  # SUPER_ADMIN
+    )
+
+    assign_role_to_user(
         user=user,
         role=role,
     )

@@ -8,5 +8,5 @@ SUPER_ADMIN = {
     "email": "admin@gaia.test",
     "password": "Superadmin123!",  
     "department": DepartmentCodes.CLOUD_PLATFORM,
-    "role": RoleCodes.PLATFORM_ADMIN,
+    "role": RoleCodes.SUPER_ADMIN,
 }

@@ -7,4 +7,20 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
+
+# Environment files
+.env
+.env.*
+
+# Cryptographic material
+keys/
+*.pem
+
+# Django
+staticfiles/
+media/
+
+# OS junk
+.DS_Store
+Thumbs.db

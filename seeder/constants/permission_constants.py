@@ -15,6 +15,7 @@ class IAMPermissions:
     USER_READ = "iam.user.read"
     USER_CREATE = "iam.user.create"
     USER_UPDATE = "iam.user.update"
+    USER_DELETE = "iam.user.assign_role"
     USER_ASSIGN_ROLE = "iam.user.assign_role"
 
 class PLECOPermissions:

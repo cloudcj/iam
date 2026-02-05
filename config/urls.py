@@ -17,8 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+# from apps.services.jwks import jwks_view
+from apps.identity.views.user import MeView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/auth/", include("apps.authn.urls")),
     path("api/identity/", include("apps.identity.urls")),
+
+    path("api/me/", MeView.as_view(), name="me"),
+    # path("api/.well-known/jwks.json", jwks_view),
 ]

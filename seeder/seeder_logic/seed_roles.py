@@ -2,15 +2,6 @@ from apps.access.models import Role, Permission, RolePermission
 from ..seeder_data import ROLES, ROLE_PERMISSIONS
 
 
-# --------------------
-# Roles
-# --------------------
-# def seed_roles():
-#     for name, description in ROLES:
-#         Role.objects.get_or_create(
-#             name=name,
-#             defaults={"description": description},
-#         )
 def seed_roles():
     for code, name, description in ROLES:
         Role.objects.get_or_create(
@@ -20,6 +11,19 @@ def seed_roles():
                 "description": description,
             },
         )
+
+
+
+
+# --------------------
+# Roles
+# --------------------
+# def seed_roles():
+#     for name, description in ROLES:
+#         Role.objects.get_or_create(
+#             name=name,
+#             defaults={"description": description},
+#         )
 
 # --------------------
 # Role → Permission mapping

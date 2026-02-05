@@ -168,16 +168,15 @@ REST_FRAMEWORK = {
 
     # FILTERS
     'DEFAULT_FILTER_BACKENDS': [
-      'django_filters.rest_framework.DjangoFilterBackend',
+    #   'django_filters.rest_framework.DjangoFilterBackend',
       'rest_framework.filters.SearchFilter',
     ],
 
     # AUTHENTICATION
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        # 'iam.authentication.jwt.CustomAuthentication',
+        # 'apps.authn.authentication.HybridJWTAuthentication',
         # "rest_framework_simplejwt.authentication.JWTAuthentication",
-        'apps.authn.authentication.HybridJWTAuthentication',
-
+        "apps.authn.authentication.IAMAuthentication",
     ),
 
     # CUSTOM EXCEPTION
@@ -222,37 +221,41 @@ MEDIA_ROOT = BASE_DIR / "media"
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-}
-# JWT settings
-JWT_PRIVATE_KEY= (BASE_DIR / "keys" / "private.pem").read_text()
-JWT_PUBLIC_KEY = (BASE_DIR / "keys" / "public.pem").read_text()
-
-SIMPLE_JWT = {
-    # 🔐 Crypto
+    # 🔐 Cryptography (IAM ONLY)
     "ALGORITHM": "RS256",
-    "SIGNING_KEY": JWT_PRIVATE_KEY,
-    "VERIFYING_KEY": JWT_PUBLIC_KEY,
-
-    # 🏷 Issuer / Audience (microservice trust)
-    "ISSUER": "gaia-iam",
-    "AUDIENCE": "gaia-api",
+    "SIGNING_KEY": Path(env("JWT_PRIVATE_KEY_PATH")).read_text(),
+    "VERIFYING_KEY": Path(env("JWT_PUBLIC_KEY_PATH")).read_text(),
 
     # ⏱ Lifetimes
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 
-    # 🔁 Rotation & revocation
+    # 🔄 Refresh rotation
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 
-    # 🧾 Header (still useful for non-browser clients)
+    # 🧾 Claims contract (trusted by microservices)
+    "ISSUER": env("JWT_ISSUER"),
+    "AUDIENCE": env("JWT_AUDIENCE"),
+
+    # 🪪 Headers
     "AUTH_HEADER_TYPES": ("Bearer",),
+
+    # 👤 Subject mapping
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "sub",
+
+    # 🔑 🔥 REQUIRED FOR REFRESH TO WORK
+    "AUTH_TOKEN_CLASSES": (
+        "rest_framework_simplejwt.tokens.AccessToken",
+        "rest_framework_simplejwt.tokens.RefreshToken",
+    ),
+
+
+    # Optional
+    "UPDATE_LAST_LOGIN": True,
 }
+
 
 # --------------------------------------------------
 # Authentication 
@@ -276,3 +279,7 @@ CSRF_COOKIE_HTTPONLY = False  # must be readable by JS
 # CORS
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS')
 CORS_ALLOW_CREDENTIALS = True
+
+# for improvement
+# CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
+# CSRF_TRUSTED_ORIGINS=https://app.internal.local,https://iam.internal.local

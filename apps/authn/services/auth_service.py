@@ -1,19 +1,28 @@
-# apps/authn/services/auth_service.py
-
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from django.core.exceptions import PermissionDenied
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
-
 from apps.access.services.permission_resolver import (
     resolve_user_effective_permissions,
 )
 from apps.authn.tokens.service import issue_user_tokens
 
+User = get_user_model()
+
 
 def login(*, request, username: str, password: str):
+    # 1️⃣ Check if user exists
+    try:
+        user_obj = User.objects.get(username=username)
+    except User.DoesNotExist:
+        raise PermissionDenied("Invalid credentials")
+        user_obj = User.objects.get(username=username)
+
+    # 2️⃣ Explicitly block deactivated users
+    if not user_obj.is_active:
+        raise PermissionDenied("Account is deactivated")
+
+    # 3️⃣ Now authenticate password
     user = authenticate(
-        request,
+        request=request,
         username=username,
         password=password,
     )
@@ -21,9 +30,7 @@ def login(*, request, username: str, password: str):
     if not user:
         raise PermissionDenied("Invalid credentials")
 
-    if not user.is_active:
-        raise PermissionDenied("User inactive")
-
+    # 4️⃣ Resolve permissions AFTER active check
     _, permissions = resolve_user_effective_permissions(user)
 
     tokens = issue_user_tokens(
@@ -34,23 +41,70 @@ def login(*, request, username: str, password: str):
     return user, tokens
 
 
+
+from django.core.exceptions import PermissionDenied
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+
+from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+
+from apps.access.services.permission_resolver import (
+    resolve_user_effective_permissions,
+)
+from django.conf import settings
+
+
+
 def refresh_tokens(*, refresh_token: str):
     if not refresh_token:
         raise PermissionDenied("Refresh token missing")
 
     try:
         refresh = RefreshToken(refresh_token)
-        new_access = refresh.access_token
-        new_refresh = str(refresh)
-    except TokenError:
+
+        user_id_claim = settings.SIMPLE_JWT["USER_ID_CLAIM"]
+        user_id = refresh[user_id_claim]
+
+        user = get_user_model().objects.get(id=user_id)
+    except Exception:
         raise PermissionDenied("Invalid or expired refresh token")
 
+    _, permissions = resolve_user_effective_permissions(user)
+
+    access = refresh.access_token
+    access["permissions"] = permissions
+    access["username"] = user.username
+    access["typ"] = "access"
+
     return {
-        "access": str(new_access),
-        "refresh": new_refresh,
+        "access": str(access),
+        "refresh": str(refresh),
     }
 
-def logout(*, refresh_token: str | None):
+# def refresh_tokens(*, refresh_token: str):
+#     if not refresh_token:
+#         raise PermissionDenied("Refresh token missing")
+
+#     try:
+#         refresh = RefreshToken(refresh_token)
+#     except TokenError:
+#         raise PermissionDenied("Invalid or expired refresh token")
+
+#     # SimpleJWT handles:
+#     # - validation
+#     # - rotation
+#     # - blacklisting (if enabled)
+#     new_access = refresh.access_token
+#     new_refresh = str(refresh)
+
+#     return {
+#         "access": str(new_access),
+#         "refresh": new_refresh,
+    # }
+
+def logout_user(*, refresh_token: str | None):
     """
     Invalidate refresh token if present.
     Safe to call multiple times.

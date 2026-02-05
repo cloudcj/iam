@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 
-class UpdateUserInfoSerializer(serializers.Serializer):
+class UpdateUserBasicSerializer(serializers.Serializer):
     email = serializers.EmailField(
         required=False,
         allow_null=True,
@@ -13,7 +13,7 @@ class UpdateUserInfoSerializer(serializers.Serializer):
 class UpdateUserDepartmentSerializer(serializers.Serializer):
     department = serializers.CharField()
 
-class UpdateUserRoleSerializer(serializers.Serializer):
+class UpdateUserRolesSerializer(serializers.Serializer):
     roles = serializers.ListField(
         child=serializers.CharField(),
         allow_empty=False,

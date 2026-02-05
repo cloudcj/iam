@@ -3,10 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from apps.authz.permissions import HasPermission
 from seeder.constants import InventoryPermissions
-from apps.authn.authentication import HybridJWTAuthentication
+from apps.authn.authentication import IAMAuthentication
 
 class ProtectedTestView(APIView):
-    authentication_classes = [HybridJWTAuthentication]
+    authentication_classes = [IAMAuthentication]
     permission_classes = [HasPermission]
     required_permission = InventoryPermissions.READ
 

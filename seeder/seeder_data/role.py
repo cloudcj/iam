@@ -6,14 +6,24 @@ from seeder.constants import RoleCodes,IAMPermissions,InventoryPermissions,PLECO
 ROLES = [
     # <role_name>, <description>
     # IAM
-    (RoleCodes.PLATFORM_ADMIN, "Platform Admin", "Full platform access"),
+    (RoleCodes.IAM_ADMIN, "Platform Admin", "Full platform access"),
     # INVENTORY
     (RoleCodes.INVENTORY_VIEWER, "Inventory Viewer", "Read-only inventory access"),
     (RoleCodes.INVENTORY_ADMIN, "Inventory Admin","Full inventory access"),
     # PLECO
     (RoleCodes.PLECO_ADMIN, "Pleco Admin","Read-only pleco access"),
     (RoleCodes.PLECO_VIEWER, "Pleco Viewer","Full access pleco access"),
+    # GLOBAL
+    (RoleCodes.SUPER_ADMIN, "Super Admin","Global system administrator with unrestricted access"),
+    # SUPER ADMIN
+    (RoleCodes.GLOBAL_VIEWER, "Global viewer","Global viewer with unrestricted access"),
 ]
+
+# # Roles that bypass department scoping
+# GLOBAL_ROLES = {
+#     RoleCodes.SUPER_ADMIN,
+#     RoleCodes.GLOBAL_VIEWER
+# }
 
 
 # --------------------
@@ -21,19 +31,39 @@ ROLES = [
 # --------------------
 ROLE_PERMISSIONS = {
     # <role_name>: [<permission_code>, ...]
-    # IAM
-    RoleCodes.PLATFORM_ADMIN: [
+
+    # SUPER ADMIN
+    RoleCodes.SUPER_ADMIN: [
         IAMPermissions.USER_READ,
         IAMPermissions.USER_CREATE,
         IAMPermissions.USER_UPDATE,
+        IAMPermissions.USER_DELETE,
         IAMPermissions.USER_ASSIGN_ROLE,
 
         InventoryPermissions.ALL,
         PLECOPermissions.ALL,
 
     ],
+
+    # GLOBAL VIEWER
+    RoleCodes.GLOBAL_VIEWER: [
+        InventoryPermissions.READ,
+        PLECOPermissions.READ,
+
+    ],
+
+    # IAM ADMIN
+    RoleCodes.IAM_ADMIN: [
+        IAMPermissions.USER_READ,
+        IAMPermissions.USER_CREATE,
+        IAMPermissions.USER_UPDATE,
+        IAMPermissions.USER_DELETE,
+        IAMPermissions.USER_ASSIGN_ROLE,
+
+    ],
     # INVENTORY
     RoleCodes.INVENTORY_VIEWER: [
+        IAMPermissions.USER_READ,
         InventoryPermissions.READ,
     ],
     RoleCodes.INVENTORY_ADMIN: [

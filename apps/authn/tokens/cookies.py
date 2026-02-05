@@ -1,4 +1,65 @@
-# # identity/auth/tokens/cookies.py
+# apps/authn/tokens/cookies.py
+
+from django.conf import settings
+
+# MUST match IAMAuthentication.cookie_name
+ACCESS_COOKIE_NAME = "access"
+REFRESH_COOKIE_NAME = "refresh"
+
+
+ACCESS_TTL = int(
+    settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()
+)
+REFRESH_TTL = int(
+    settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
+)
+
+
+def set_auth_cookies(response, *, access: str, refresh: str):
+    """
+    Set HttpOnly authentication cookies.
+
+    - access  → access token (authorization)
+    - refresh → refresh token (credential)
+    """
+
+    response.set_cookie(
+        ACCESS_COOKIE_NAME,
+        access,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="Lax",
+        max_age=ACCESS_TTL,
+        path="/",
+    )
+
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        refresh,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="Lax",
+        max_age=REFRESH_TTL,
+        path="/",
+    )
+
+
+def clear_auth_cookies(response):
+    """
+    Clear auth cookies (logout).
+    """
+    response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
+    response.delete_cookie(REFRESH_COOKIE_NAME, path="/")
+
+
+
+
+
+
+
+
+
+
 
 # def set_auth_cookies(response, *, access, refresh):
 #     response.set_cookie(
@@ -24,36 +85,36 @@
 
 
 # identity/auth/tokens/cookies.py
-from django.conf import settings
+# from django.conf import settings
 
-ACCESS_COOKIE_NAME = "access_token"
-REFRESH_COOKIE_NAME = "refresh_token"
+# ACCESS_COOKIE_NAME = "access_token"
+# REFRESH_COOKIE_NAME = "refresh_token"
 
-ACCESS_TTL = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
-REFRESH_TTL = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+# ACCESS_TTL = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+# REFRESH_TTL = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
 
-def set_auth_cookies(response, *, access, refresh):
-    response.set_cookie(
-        ACCESS_COOKIE_NAME,
-        access,
-        httponly=True,
-        secure=not settings.DEBUG,
-        samesite="Lax",
-        max_age=ACCESS_TTL,
-        path="/",
-    )
+# def set_auth_cookies(response, *, access, refresh):
+#     response.set_cookie(
+#         ACCESS_COOKIE_NAME,
+#         access,
+#         httponly=True,
+#         secure=not settings.DEBUG,
+#         samesite="Lax",
+#         max_age=ACCESS_TTL,
+#         path="/",
+#     )
 
-    response.set_cookie(
-        REFRESH_COOKIE_NAME,
-        refresh,
-        httponly=True,
-        secure=not settings.DEBUG,
-        samesite="Lax",
-        max_age=REFRESH_TTL,
-        path="/",
-    )
+#     response.set_cookie(
+#         REFRESH_COOKIE_NAME,
+#         refresh,
+#         httponly=True,
+#         secure=not settings.DEBUG,
+#         samesite="Lax",
+#         max_age=REFRESH_TTL,
+#         path="/",
+#     )
 
 
-def clear_auth_cookies(response):
-    response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
-    response.delete_cookie(REFRESH_COOKIE_NAME, path="/")
+# def clear_auth_cookies(response):
+#     response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
+#     response.delete_cookie(REFRESH_COOKIE_NAME, path="/")

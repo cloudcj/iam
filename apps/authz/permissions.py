@@ -1,78 +1,61 @@
-# identity/permissions/has_permission.py
+# #from rest_framework.permissions import BasePermission
+# from rest_framework.permissions import BasePermission
+# from django.core.exceptions import PermissionDenied
 
-from django.conf import settings
-
-
-from rest_framework.permissions import BasePermission
 
 # class HasPermission(BasePermission):
 #     """
-#     Checks required_permission against JWT claims.
-#     Used for IAM admin authorization.
+#     Checks required_permission against JWT access token claims.
 #     """
 
 #     def has_permission(self, request, view):
-#         required_permission = getattr(view, "required_permission", None)
-
-#         if not required_permission:
-#             return True
-
-#         claims = request.auth
-#         if not isinstance(claims, dict):
+#         # 🔐 Must be authenticated first
+#         if not request.user or not request.user.is_authenticated:
 #             return False
 
-#         permissions = claims.get("permissions", [])
-#         return required_permission in permissions
+#         # 🔑 Superuser / system override (recommended)
+#         if getattr(request.user, "is_superuser", False):
+#             return True
 
-
-
-class HasPermission(BasePermission):
-    def has_permission(self, request, view):
-        # print("AUTH:", request.auth)
-        # print("REQUIRED:", getattr(view, "required_permission", None))
-
-        if not request.auth:
-            return False
-
-        perms = request.auth.get("permissions", [])
-        print("TOKEN PERMS:", perms)
-
-        return view.required_permission in perms
-
-
-
-
-
-
-# import logging
-# from rest_framework.permissions import BasePermission
-
-# logger = logging.getLogger(__name__)
-
-# class HasPermission(BasePermission):
-#     def has_permission(self, request, view):
 #         required = getattr(view, "required_permission", None)
 
-#         # No permission required
+#         # No permission required → allow
 #         if not required:
 #             return True
 
-#         token = request.auth  # validated JWT (dict-like)
+#         token = request.auth
+#         if not token:
+#             return False
 
-#         sub = token.get("sub")
-#         jti = token.get("jti")
+#         # SimpleJWT tokens are dict-like, but be defensive
+#         try:
+#             permissions = token.get("permissions", [])
+#         except AttributeError:
+#             permissions = token.payload.get("permissions", [])
 
-#         permissions = token.get("permissions", [])
+#         return required in permissions
 
-#         allowed = required in permissions
+from rest_framework.permissions import BasePermission
 
-#         # 🔐 Safe audit log
-#         logger.info(
-#             "AUTHZ sub=%s jti=%s required=%s allowed=%s",
-#             sub,
-#             jti,
-#             required,
-#             allowed,
-#         )
 
-#         return allowed
+class HasPermission(BasePermission):
+    """
+    Checks required_permission against JWT access token claims.
+    """
+
+    def has_permission(self, request, view):
+        # 🔐 Must be authenticated
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        required = getattr(view, "required_permission", None)
+
+        # No permission required → allow
+        if not required:
+            return True
+
+        claims = request.auth or {}
+        permissions = claims.get("permissions", [])
+
+        return required in permissions
+

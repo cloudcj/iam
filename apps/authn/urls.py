@@ -5,12 +5,14 @@ from apps.authn.views import (
     LogoutView, 
     RefreshTokenView,
     CSRFTokenView, 
-    # CreateUserView,
-    # UpdateUserIdentityView,
-    # UpdateUserRolesView,
-    # ListUsersView,
-    # UpdateUserDepartmentView
     )
+
+# from rest_framework_simplejwt.views import (
+#     TokenObtainPairView,
+#     TokenRefreshView,
+#     TokenBlacklistView,
+# )
+
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
@@ -18,10 +20,9 @@ urlpatterns = [
     path("test/protected/", ProtectedTestView.as_view()),
     path("refresh/", RefreshTokenView.as_view()),
     path("csrf/", CSRFTokenView.as_view()),
-    # path("users/", CreateUserView.as_view(), name="create-user"),
-    # path("users/<uuid:user_id>/", UpdateUserIdentityView.as_view()),
-    # path("users/<uuid:user_id>/roles/", UpdateUserRolesView.as_view()),
-    # path("users/list/", ListUsersView.as_view(), name="list-users"),
-    # path("users/<uuid:user_id>/department/",UpdateUserDepartmentView.as_view()),
+
+    # path("api/token/", TokenObtainPairView.as_view()),
+    # path("api/token/refresh/", TokenRefreshView.as_view()),
+    # path("api/token/blacklist/", TokenBlacklistView.as_view()),
 
 ]

@@ -17,7 +17,7 @@ DEPARTMENTS = [
 DEPARTMENT_ALLOWED_ROLES = {
     # <department_code>: [<role_name>, ...]
     DepartmentCodes.CLOUD_PLATFORM: [
-        RoleCodes.PLATFORM_ADMIN,
+        RoleCodes.IAM_ADMIN,
         RoleCodes.INVENTORY_ADMIN,
         RoleCodes.PLECO_ADMIN
     ],
@@ -29,6 +29,7 @@ DEPARTMENT_ALLOWED_ROLES = {
         RoleCodes.PLECO_ADMIN
     ],
 }
+
 
 
 # def seed_departments():
