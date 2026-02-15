@@ -33,10 +33,40 @@ class MeSerializer(serializers.Serializer):
     username = serializers.CharField()
     email = serializers.EmailField(allow_blank=True, allow_null=True)
 
-    department = serializers.SerializerMethodField()
+    department = serializers.DictField()
+    systems = serializers.ListField(child=serializers.DictField())
+    permissions = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField())
+    )
 
-    def get_department(self, obj):
-        return {
-            "code": obj.department.code,
-            "label": obj.department.name,
-        }
+
+
+
+# class MeSerializer(serializers.Serializer):
+#     id = serializers.UUIDField()
+#     username = serializers.CharField()
+#     email = serializers.EmailField(allow_blank=True, allow_null=True)
+
+#     department = serializers.SerializerMethodField()
+#     # systems = serializers.ListField(child=serializers.DictField())
+#     # permissions = serializers.DictField(
+#     #     child=serializers.ListField(child=serializers.CharField())
+#     # )
+#     def get_department(self, obj):
+#         if not obj.department:
+#             return None
+
+#         return {
+#             "code": obj.department.code,
+#             "label": obj.department.name,
+#         }
+
+#     def to_representation(self, instance):
+#         data = super().to_representation(instance)
+
+#         data["systems"] = self.context.get("systems", [])
+#         data["permissions"] = self.context.get("permissions", {})
+
+#         return data
+
+

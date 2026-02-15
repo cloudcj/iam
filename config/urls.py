@@ -26,8 +26,8 @@ urlpatterns = [
     path("api/auth/", include("apps.authn.urls")),
     path("api/identity/", include("apps.identity.urls")),
 
-    path("api/me/", MeView.as_view(), name="me"),
-    path("api/me/systems", MeSystemsView.as_view(), name="me-systems"),
+    path("api/v1/me/", MeView.as_view(), name="me"),
+    path("api/v1/me/systems", MeSystemsView.as_view(), name="me-systems"),
 
     # path("api/.well-known/jwks.json", jwks_view),
     path("api/iam/", include("apps.authz.urls")),
