@@ -3,3 +3,7 @@ from .role import Role
 from .role_permission import RolePermission
 from .user_role import UserRole
 from .department_allowed_role import DepartmentAllowedRole
+from .policy import Policy
+from .policy_permission import PolicyPermission
+from .role_policy import RolePolicy
+from .user_policy import UserPolicy

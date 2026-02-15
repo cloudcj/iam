@@ -1,0 +1,3 @@
+from .departments import DEPARTMENTS
+
+DEPARTMENT_REGISTRY = DEPARTMENTS

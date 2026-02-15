@@ -18,7 +18,8 @@ from django.contrib import admin
 from django.urls import include, path
 
 # from apps.services.jwks import jwks_view
-from apps.identity.views.user import MeView
+from apps.identity.views.me.me import MeView
+from apps.identity.views.me.me_systems import MeSystemsView 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,5 +27,8 @@ urlpatterns = [
     path("api/identity/", include("apps.identity.urls")),
 
     path("api/me/", MeView.as_view(), name="me"),
+    path("api/me/systems", MeSystemsView.as_view(), name="me-systems"),
+
     # path("api/.well-known/jwks.json", jwks_view),
+    path("api/iam/", include("apps.authz.urls")),
 ]

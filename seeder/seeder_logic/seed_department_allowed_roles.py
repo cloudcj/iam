@@ -1,19 +1,21 @@
 from apps.department.models import Department
-from apps.access.models import Role, DepartmentAllowedRole
+from apps.access.models import Role
+from access_control.departments import DEPARTMENT_REGISTRY
 
-from ..seeder_data import DEPARTMENT_ALLOWED_ROLES
 
-
-# --------------------
-# Department → Allowed Roles
-# --------------------
 def seed_department_allowed_roles():
-    for dept_code, role_names in DEPARTMENT_ALLOWED_ROLES.items():
-        department = Department.objects.get(code=dept_code)
+    for dept in DEPARTMENT_REGISTRY.values():
 
-        for role_name in role_names:
-            role = Role.objects.get(code=role_name)
-            DepartmentAllowedRole.objects.get_or_create(
-                department=department,
-                role=role,
+        db_department = Department.objects.get(code=dept.name)
+
+        roles = Role.objects.filter(code__in=dept.allowed_roles)
+
+        if roles.count() != len(dept.allowed_roles):
+            existing = set(roles.values_list("code", flat=True))
+            missing = set(dept.allowed_roles) - existing
+            raise RuntimeError(
+                f"Department {dept.name} references missing roles: {missing}"
             )
+
+        # ✅ Correct field name
+        db_department.allowed_roles.set(roles)

@@ -1,13 +1,12 @@
 from apps.department.models import Department
-from ..seeder_data import DEPARTMENTS
+from access_control.departments import DEPARTMENT_REGISTRY
 
-# --------------------
-# Departments
-# --------------------
+
 def seed_departments():
-    for code, name in DEPARTMENTS:
-        Department.objects.get_or_create(
-            code=code,
-            defaults={"name": name},
+    for dept in DEPARTMENT_REGISTRY.values():
+        Department.objects.update_or_create(
+            code=dept.name,
+            defaults={
+                "name": dept.label,
+            },
         )
-

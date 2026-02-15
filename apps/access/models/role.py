@@ -1,3 +1,27 @@
+# # identity/models/role.py
+# import uuid
+# from django.db import models
+
+
+# class Role(models.Model):
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+#     code = models.CharField( max_length=64,unique=True,db_index=True,help_text="Stable system identifier (DO NOT CHANGE)")
+#     name = models.CharField(max_length=100, unique=True)
+#     description = models.TextField(blank=True)
+
+#     permissions = models.ManyToManyField(
+#         "access.Permission",
+#         through="RolePermission",
+#         related_name="roles",
+#     )
+
+#     def __str__(self):
+#         return self.name
+    
+#     class Meta:
+#         db_table = 'iam_role'
+
 # identity/models/role.py
 import uuid
 from django.db import models
@@ -6,18 +30,30 @@ from django.db import models
 class Role(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    code = models.CharField( max_length=64,unique=True,db_index=True,help_text="Stable system identifier (DO NOT CHANGE)")
-    name = models.CharField(max_length=100, unique=True)
+    # canonical identifier (used everywhere in code & seeding)
+    code = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="Stable system identifier (DO NOT CHANGE)",
+    )
+
+    # human-readable label
+    name = models.CharField(
+        max_length=100,
+        help_text="Display name",
+    )
+
     description = models.TextField(blank=True)
 
-    permissions = models.ManyToManyField(
-        "access.Permission",
-        through="RolePermission",
-        related_name="roles",
-    )
+    # permissions = models.ManyToManyField(
+    #     "access.Permission",
+    #     through="RolePermission",
+    #     related_name="roles",
+    # )
 
     def __str__(self):
         return self.name
-    
+
     class Meta:
-        db_table = 'iam_role'
+        db_table = "iam_role"

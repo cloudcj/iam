@@ -3,10 +3,28 @@ from django.db import models
 
 
 class UserRole(models.Model):
-    user = models.ForeignKey("identity.User", on_delete=models.CASCADE, related_name="user_roles")
-    role = models.ForeignKey("access.Role", on_delete=models.CASCADE, related_name="role_users")
+    user = models.ForeignKey(
+        "identity.User",
+        on_delete=models.CASCADE,
+        related_name="user_roles",
+    )
+
+    role = models.ForeignKey(
+        "access.Role",
+        on_delete=models.CASCADE,
+        related_name="role_users",
+    )
+
+    assigned_by = models.ForeignKey(
+        "identity.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_roles",
+    )
 
     assigned_at = models.DateTimeField(auto_now_add=True)
+
 
     class Meta:
         unique_together = ("user", "role")

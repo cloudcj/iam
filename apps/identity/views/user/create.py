@@ -1,45 +1,4 @@
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from django.core.exceptions import ValidationError
-
-# from apps.authz.permissions import HasPermission
-# from apps.identity.services.user import create_user
-
-# from seeder.constants import IAMPermissions
-
-# from apps.identity.serializers.user import UserCreateSerializer
-
-
-# class CreateUserView(APIView):
-#     permission_classes = [HasPermission]
-#     required_permission = IAMPermissions.USER_CREATE
-
-#     def post(self, request):
-#         serializer = UserCreateSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-
-#         data = serializer.validated_data
-
-#         try:
-#             user = create_user(
-#                 username=data["username"],
-#                 password=data["password"],
-#                 email=data.get("email"),
-#                 department_code=data["department"],
-#                 role_codes=data["roles"],
-#             )
-#         except ValidationError as e:
-#             return Response(
-#                 {"detail": str(e)},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-#         return Response(
-#             {"status":"User created successfully"},
-#             status=status.HTTP_201_CREATED,
-#         )
-
+# apps/identity/views/user/create.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -48,12 +7,11 @@ from rest_framework import status
 from apps.identity.serializers.user.create import UserCreateSerializer
 from apps.identity.services.user.create import create_user
 from apps.authz.permissions import HasPermission
-from seeder.constants import IAMPermissions
 
 
 class CreateUserView(APIView):
     permission_classes = [IsAuthenticated, HasPermission]
-    required_permission = IAMPermissions.USER_CREATE
+    required_permission = "iam.user.create"
 
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
@@ -66,18 +24,17 @@ class CreateUserView(APIView):
             username=data["username"],
             password=data["password"],
             email=data.get("email"),
-            department_code=data["department"],
-            role_codes=data.get("roles", []),
+            department_id=data.get("department"),
+            role_ids=data.get("roles"),
+            policy_ids=data.get("policies"),
         )
 
         return Response(
-            # {
-            #     "status":"user created successfully"
-            # }
             {
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
+                "department": user.department.code,
             },
             status=status.HTTP_201_CREATED,
         )

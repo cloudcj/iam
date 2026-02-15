@@ -1,26 +1,24 @@
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
-def issue_user_tokens(*, user, permissions):
+def issue_user_tokens(*, user):
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
 
-    # ------------------
-    # Identity (access token)
-    # ------------------
-    # Let SimpleJWT handle `sub` automatically
-    # It will be set to str(user.id)
+    # Identity only
     access["username"] = user.username
-
-    # ------------------
-    # Authorization
-    # ------------------
-    access["permissions"] = permissions
+    # SimpleJWT already sets:
+    # - sub (user id)
+    # - exp
+    # - iat
+    # - jti
+    # - token_type
 
     return {
         "access": str(access),
         "refresh": str(refresh),
     }
+
 
 
 

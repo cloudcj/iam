@@ -9,18 +9,14 @@ User = get_user_model()
 
 
 def login(*, request, username: str, password: str):
-    # 1️⃣ Check if user exists
     try:
         user_obj = User.objects.get(username=username)
     except User.DoesNotExist:
         raise PermissionDenied("Invalid credentials")
-        user_obj = User.objects.get(username=username)
 
-    # 2️⃣ Explicitly block deactivated users
     if not user_obj.is_active:
         raise PermissionDenied("Account is deactivated")
 
-    # 3️⃣ Now authenticate password
     user = authenticate(
         request=request,
         username=username,
@@ -30,15 +26,10 @@ def login(*, request, username: str, password: str):
     if not user:
         raise PermissionDenied("Invalid credentials")
 
-    # 4️⃣ Resolve permissions AFTER active check
-    _, permissions = resolve_user_effective_permissions(user)
-
-    tokens = issue_user_tokens(
-        user=user,
-        permissions=permissions,
-    )
+    tokens = issue_user_tokens(user=user)
 
     return user, tokens
+
 
 
 
