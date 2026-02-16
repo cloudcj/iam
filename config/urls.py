@@ -21,14 +21,36 @@ from django.urls import include, path
 from apps.identity.views.me.me import MeView
 from apps.identity.views.me.me_systems import MeSystemsView 
 
+
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path("api/auth/", include("apps.authn.urls")),
-    path("api/identity/", include("apps.identity.urls")),
+    path("admin/", admin.site.urls),
 
+    # Authentication (public entry)
+    path("api/v1/auth/", include("apps.authn.urls")),
+
+    # Identity management (users, roles, orgs)
+    path("api/v1/identity/", include("apps.identity.urls")),
+
+    # Authorization (permissions, policies, checks)
+    path("api/v1/authorization/", include("apps.authz.urls")),
+
+    # Self-scoped identity
     path("api/v1/me/", MeView.as_view(), name="me"),
-    path("api/v1/me/systems", MeSystemsView.as_view(), name="me-systems"),
-
-    # path("api/.well-known/jwks.json", jwks_view),
-    path("api/iam/", include("apps.authz.urls")),
+    path("api/v1/me/systems/", MeSystemsView.as_view(), name="me-systems"),
 ]
+
+
+
+
+# urlpatterns = [
+#     path('admin/', admin.site.urls),
+#     path("api/auth/", include("apps.authn.urls")),
+#     path("api/identity/", include("apps.identity.urls")),
+
+#     path("api/v1/me/", MeView.as_view(), name="me"),
+#     path("api/v1/me/systems", MeSystemsView.as_view(), name="me-systems"),
+
+#     # path("api/.well-known/jwks.json", jwks_view),
+#     path("api/iam/", include("apps.authz.urls")),
+# ]

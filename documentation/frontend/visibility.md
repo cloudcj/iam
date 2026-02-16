@@ -25,11 +25,11 @@ Response Example
 
         "permissions": {
             "inventory": [
-            "region.read",
-            "az.read"
+                "region.read",
+                "az.read"
             ],
             "iam": [
-            "user.read"
+                "user.read"
             ]
         }
     }
@@ -37,6 +37,10 @@ Response Example
 ## Navigation per menu endpoint
 
     GET /<system>/navigation
+
+    example:
+
+    GET /inventory/navigation
 
 Purpose
 
@@ -51,12 +55,12 @@ Response Example
             "title": "Infrastructure",
             "items": [
                 {
-                "label": "Regions",
-                "path": "/inventory/regions"
+                    "label": "Regions",
+                    "path": "/inventory/regions"
                 },
                 {
-                "label": "AZ",
-                "path": "/inventory/az"
+                    "label": "AZ",
+                    "path": "/inventory/az"
                 }
             ]
             }
