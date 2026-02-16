@@ -33,7 +33,7 @@ urlpatterns = [
     path("api/v1/identity/", include("apps.identity.urls")),
 
     # Authorization (permissions, policies, checks)
-    path("api/v1/authorization/", include("apps.authz.urls")),
+    path("api/v1/", include("apps.authz.urls")),
 
     # Self-scoped identity
     path("api/v1/me/", MeView.as_view(), name="me"),
