@@ -56,7 +56,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 
 from ..managers import UserManager, ActiveUserManager
 
-from apps.authz.service.authorization_service import AuthorizationService
+from apps.authz.services.authorization_service import AuthorizationService
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -119,7 +119,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # ---- Authorization ----
 
-   # iam/models/user.py
+    # iam/models/user.py
     def has_permission(self, permission_code: str) -> bool:
         return AuthorizationService.has_permission(self, permission_code)
 

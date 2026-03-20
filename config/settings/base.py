@@ -57,7 +57,6 @@ INSTALLED_APPS = [
     # Third Party
     "rest_framework",
     "rest_framework_simplejwt",
-    "rest_framework_simplejwt.token_blacklist",
 
     # Apps
     "seeder",
@@ -127,6 +126,24 @@ DATABASES = {
     }
 }
 
+# --------------------------------------------------
+# Cache (Redis)
+# --------------------------------------------------
+REDIS_HOST = env("REDIS_HOST", default="127.0.0.1")
+REDIS_PORT = env("REDIS_PORT", default="6379")
+REDIS_DB   = env("REDIS_DB", default="1")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
+
 
 # --------------------------------------------------
 # Password validation
@@ -178,6 +195,11 @@ REST_FRAMEWORK = {
         # "rest_framework_simplejwt.authentication.JWTAuthentication",
         "apps.authn.authentication.IAMAuthentication",
     ),
+
+    # THROTTLING
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '60/minute',
+    },
 
     # CUSTOM EXCEPTION
     # 'EXCEPTION_HANDLER': 'utils.exceptions.custom_exception_handler'
@@ -232,7 +254,7 @@ SIMPLE_JWT = {
 
     # 🔄 Refresh rotation
     "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
+    "BLACKLIST_AFTER_ROTATION": False,
 
     # 🧾 Claims contract (trusted by microservices)
     "ISSUER": env("JWT_ISSUER"),
@@ -248,7 +270,7 @@ SIMPLE_JWT = {
     # 🔑 🔥 REQUIRED FOR REFRESH TO WORK
     "AUTH_TOKEN_CLASSES": (
         "rest_framework_simplejwt.tokens.AccessToken",
-        "rest_framework_simplejwt.tokens.RefreshToken",
+        # "rest_framework_simplejwt.tokens.RefreshToken",
     ),
 
 
@@ -281,5 +303,5 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS')
 CORS_ALLOW_CREDENTIALS = True
 
 # for improvement
-# CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
 # CSRF_TRUSTED_ORIGINS=https://app.internal.local,https://iam.internal.local

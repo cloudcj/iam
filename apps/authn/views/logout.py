@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 
-from apps.authn.services.auth_service import logout_user
+from apps.authn.services.auth_service import logout
 from apps.authn.tokens.cookies import (
     clear_auth_cookies,
     REFRESH_COOKIE_NAME,
@@ -20,7 +20,7 @@ class LogoutView(APIView):
     authentication_classes = []
 
     def post(self, request):
-        logout_user(
+        logout(
             refresh_token=request.COOKIES.get(REFRESH_COOKIE_NAME),
         )
 

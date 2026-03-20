@@ -1,53 +1,8 @@
-# # identity/views/me_view.py
-
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-
-# from django.contrib.auth import get_user_model
-
-# from apps.identity.serializers.user import MeSerializer
-
-# User = get_user_model()
-
-# class MeView(APIView):
-#     def get(self, request):
-#         user = (
-#             User.objects
-#             .prefetch_related(
-#                 "user_roles__role",
-#                 "user_department__department",
-#             )
-#             .get(pk=request.user.pk)
-#         )
-
-#         serializer = MeSerializer(user)
-#         return Response(serializer.data)
-
-
-# apps/identity/views/me.py
-
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ...serializers.user import MeSerializer
-
-
-# class MeView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         serializer = MeSerializer(request.user)
-#         return Response(serializer.data)
-
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-
-from apps.authz.service.authorization_service import AuthorizationService
-from ...serializers.user import MeSerializer
-
+from apps.authz.services.authorization_service import AuthorizationService
 
 
 class MeView(APIView):
@@ -55,41 +10,60 @@ class MeView(APIView):
 
     def get(self, request):
         user = request.user
+        token = request.auth
 
-        # 1️⃣ Resolve permissions (cached per request)
-        permission_codes = AuthorizationService.get_user_permission_codes(user)
+        if user.is_superuser:
+            # Superuser — is_superuser flag handles all frontend checks
+            # No need to load or return permissions
+            permission_codes = set()
+        else:
+            # Regular user — read permissions from JWT (no DB hit)
+            permission_codes = set(token.get("permissions", []))
 
-        # 2️⃣ Group permissions by system
-        grouped_permissions = AuthorizationService.group_permissions_by_system(
-            permission_codes
-        )
+        systems = sorted({code.split(".")[0] for code in permission_codes})
 
-        # 3️⃣ Derive systems from grouped permissions
-        systems = [
-            {
-                "code": system,
-                "label": system.upper(),  # replace with registry if needed
-            }
-            for system in sorted(grouped_permissions.keys())
-        ]
-
-        # 4️⃣ Build projection explicitly
-        data = {
-            "id": user.id,
+        return Response({
+            "id": str(user.id),
             "username": user.username,
             "email": user.email,
+            "is_superuser": user.is_superuser,
             "department": {
                 "code": user.department.code,
-                "label": user.department.name,
+                "name": user.department.name,
             },
             "systems": systems,
-            "permissions": grouped_permissions,
-        }
+            "permissions": sorted(permission_codes),
+        })
 
-        # 5️⃣ Serialize projection
-        serializer = MeSerializer(data)
 
-        return Response(serializer.data)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# from rest_framework.views import APIView
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+
+# from apps.authz.services.authorization_service import AuthorizationService
 
 
 # class MeView(APIView):
@@ -97,26 +71,115 @@ class MeView(APIView):
 
 #     def get(self, request):
 #         user = request.user
+#         token = request.auth
 
-#         permission_codes = AuthorizationService.get_user_permission_codes(user)
+#         # ✅ Read permissions from JWT (no DB hit)
+#         if user.is_superuser:
+#             # Superuser — load from DB since JWT carries empty permissions[]
+#             permission_codes = AuthorizationService.get_user_permission_codes(user)
+#         else:
+#             permission_codes = set(token.get("permissions", []))
 
-#         grouped_permissions = AuthorizationService.group_permissions_by_system(
-#             permission_codes
-#         )
+#         # Derive systems from permission codes
+#         systems = sorted({code.split(".")[0] for code in permission_codes})
+
+#         return Response({
+#             "id": str(user.id),
+#             "username": user.username,
+#             "email": user.email,
+#             "is_superuser": user.is_superuser,
+#             "department": {
+#                 "code": user.department.code,
+#                 "name": user.department.name,
+#             },
+#             "systems": systems,
+#             "permissions": sorted(permission_codes),
+#         })
+
+#################################################################
+
+# from rest_framework.views import APIView
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+
+# from apps.authz.services.authorization_service import AuthorizationService
+
+
+# class MeView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         token = request.auth
+
+#         # ✅ Read permissions from JWT (no DB hit)
+#         if user.is_superuser:
+#             # Superuser — load from DB since JWT carries empty permissions[]
+#             permission_codes = AuthorizationService.get_user_permission_codes(user)
+#         else:
+#             permission_codes = set(token.get("permissions", []))
+
+#         # ✅ Group permissions for frontend nav
+#         grouped = AuthorizationService.group_permissions_by_system(permission_codes)
+
+#         return Response({
+#             "id": str(user.id),
+#             "username": user.username,
+#             "email": user.email,
+#             "is_superuser": user.is_superuser,
+#             "department": {
+#                 "code": user.department.code,
+#                 "name": user.department.name,
+#             },
+#             "systems": sorted(grouped.keys()),
+#             "permissions": grouped,
+#         })
+
+####################################################################
+
+# from rest_framework.views import APIView
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+
+# from apps.authz.services.authorization_service import AuthorizationService
+# from registry.systems import PERMISSION_REGISTRY
+
+
+# class MeView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         token = request.auth
+
+#         # ✅ Read permissions from JWT (no DB hit)
+#         if user.is_superuser:
+#             # Superuser — load from DB since JWT carries empty permissions[]
+#             permission_codes = AuthorizationService.get_user_permission_codes(user)
+#         else:
+#             permission_codes = set(token.get("permissions", []))
+
+#         # ✅ Group permissions for frontend nav
+#         grouped = AuthorizationService.group_permissions_by_system(permission_codes)
+
+#         # ✅ Systems with proper labels from registry
 #         systems = [
 #             {
-#                 "code": system,
-#                 "label": system.upper(),
+#                 "code": code,
+#                 "name": PERMISSION_REGISTRY[code].label if code in PERMISSION_REGISTRY else code.capitalize(),
 #             }
-#             for system in sorted(grouped_permissions.keys())
+#             for code in sorted(grouped.keys())
 #         ]
 
-#         serializer = MeSerializer(
-#             user,
-#             context={
-#                 "systems": systems,
-#                 "permissions": grouped_permissions,
-#             }
-#         )
-
-#         return Response(serializer.data)
+#         return Response({
+#             "id": str(user.id),
+#             "username": user.username,
+#             "email": user.email,
+#             "is_superuser": user.is_superuser,
+#             "department": {
+#                 "code": user.department.code,
+#                 "name": user.department.name,
+#             },
+#             "systems": systems,
+#             "permissions": grouped,
+#         })

@@ -1,4 +1,4 @@
-from access_control.services import PERMISSION_REGISTRY
+from registry.systems import PERMISSION_REGISTRY
 from apps.access.models import Permission
 
 # def generate_permission_description(service, resource, action):

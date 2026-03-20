@@ -1,21 +1,23 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.core.exceptions import PermissionDenied
-from apps.access.services.permission_resolver import (
-    resolve_user_effective_permissions,
-)
+
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from apps.authn.blacklist.service import blacklist_token
+
 from apps.authn.tokens.service import issue_user_tokens
 
 User = get_user_model()
 
 
 def login(*, request, username: str, password: str):
-    try:
-        user_obj = User.objects.get(username=username)
-    except User.DoesNotExist:
-        raise PermissionDenied("Invalid credentials")
+    # try:
+    #     user_obj = User.objects.get(username=username)
+    # except User.DoesNotExist:
+    #     raise PermissionDenied("Invalid credentials")
 
-    if not user_obj.is_active:
-        raise PermissionDenied("Account is deactivated")
+    # if not user_obj.is_active:
+    #     raise PermissionDenied("Account is deactivated")
 
     user = authenticate(
         request=request,
@@ -24,6 +26,13 @@ def login(*, request, username: str, password: str):
     )
 
     if not user:
+        # One single generic message for ALL failures.
+        # Wrong password, wrong username, doesn't matter — same response.
+        raise PermissionDenied("Invalid credentials")
+
+    if not user.is_active:
+        # Even inactive accounts get the same generic message.
+        # Never tell the attacker the account exists but is disabled.
         raise PermissionDenied("Invalid credentials")
 
     tokens = issue_user_tokens(user=user)
@@ -32,47 +41,63 @@ def login(*, request, username: str, password: str):
 
 
 
-
-from django.core.exceptions import PermissionDenied
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
-
-from django.contrib.auth import get_user_model
-from django.core.exceptions import PermissionDenied
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-
-from apps.access.services.permission_resolver import (
-    resolve_user_effective_permissions,
-)
-from django.conf import settings
-
-
-
-def refresh_tokens(*, refresh_token: str):
+def logout(*, refresh_token: str | None):
+    """
+    Invalidate refresh token if present.
+    Safe to call multiple times.
+    """
     if not refresh_token:
-        raise PermissionDenied("Refresh token missing")
+        return
 
     try:
-        refresh = RefreshToken(refresh_token)
+        token = RefreshToken(refresh_token)
+        blacklist_token(token["jti"], token["exp"])
+    except TokenError:
+        # already invalid / expired → noop
+        pass
 
-        user_id_claim = settings.SIMPLE_JWT["USER_ID_CLAIM"]
-        user_id = refresh[user_id_claim]
 
-        user = get_user_model().objects.get(id=user_id)
-    except Exception:
-        raise PermissionDenied("Invalid or expired refresh token")
 
-    _, permissions = resolve_user_effective_permissions(user)
+# from django.core.exceptions import PermissionDenied
+# from rest_framework_simplejwt.tokens import RefreshToken
+# from rest_framework_simplejwt.exceptions import TokenError
 
-    access = refresh.access_token
-    access["permissions"] = permissions
-    access["username"] = user.username
-    access["typ"] = "access"
+# from django.contrib.auth import get_user_model
+# from django.core.exceptions import PermissionDenied
+# from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
-    return {
-        "access": str(access),
-        "refresh": str(refresh),
-    }
+# from apps.access.services.permission_resolver import (
+#     resolve_user_effective_permissions,
+# )
+# from django.conf import settings
+
+
+
+# def refresh_tokens(*, refresh_token: str):
+#     if not refresh_token:
+#         raise PermissionDenied("Refresh token missing")
+
+#     try:
+#         refresh = RefreshToken(refresh_token)
+
+#         user_id_claim = settings.SIMPLE_JWT["USER_ID_CLAIM"]
+#         user_id = refresh[user_id_claim]
+
+#         user = get_user_model().objects.get(id=user_id)
+#     except Exception:
+#         raise PermissionDenied("Invalid or expired refresh token")
+
+#     _, permissions = resolve_user_effective_permissions(user)
+
+#     access = refresh.access_token
+#     access["permissions"] = permissions
+#     access["username"] = user.username
+#     access["typ"] = "access"
+
+#     return {
+#         "access": str(access),
+#         "refresh": str(refresh),
+#     }
 
 # def refresh_tokens(*, refresh_token: str):
 #     if not refresh_token:
@@ -95,20 +120,20 @@ def refresh_tokens(*, refresh_token: str):
 #         "refresh": new_refresh,
     # }
 
-def logout_user(*, refresh_token: str | None):
-    """
-    Invalidate refresh token if present.
-    Safe to call multiple times.
-    """
-    if not refresh_token:
-        return
+# def logout_user(*, refresh_token: str | None):
+#     """
+#     Invalidate refresh token if present.
+#     Safe to call multiple times.
+#     """
+#     if not refresh_token:
+#         return
 
-    try:
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-    except TokenError:
-        # already invalid / expired → noop
-        pass
+#     try:
+#         token = RefreshToken(refresh_token)
+#         token.blacklist()
+#     except TokenError:
+#         # already invalid / expired → noop
+#         pass
 
 
 

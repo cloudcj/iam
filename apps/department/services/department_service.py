@@ -3,7 +3,7 @@
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
-from apps.department.models import Department, UserDepartment
+from apps.department.models import Department
 
 
 @transaction.atomic
@@ -22,10 +22,8 @@ def assign_user_to_department(*, actor, user, department):
     if not actor.is_superuser:
         raise ValidationError("Not allowed")
 
-    UserDepartment.objects.update_or_create(
-        user=user,
-        defaults={"department": department},
-    )
+    user.department = department
+    user.save(update_fields=["department"])
 
 
 # what should be in department service:

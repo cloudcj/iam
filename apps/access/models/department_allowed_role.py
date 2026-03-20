@@ -18,23 +18,23 @@
 #         unique_together = ("department", "role")
 
 # identity/models/department_allowed_role.py
-from django.db import models
+# from django.db import models
 
 
-class DepartmentAllowedRole(models.Model):
-    department = models.ForeignKey(
-        "department.Department",
-        on_delete=models.CASCADE,
-    )
-    role = models.ForeignKey(
-        "access.Role",
-        on_delete=models.CASCADE,
-    )
+# class DepartmentAllowedRole(models.Model):
+#     department = models.ForeignKey(
+#         "department.Department",
+#         on_delete=models.CASCADE,
+#     )
+#     role = models.ForeignKey(
+#         "access.Role",
+#         on_delete=models.CASCADE,
+#     )
 
-    class Meta:
-        unique_together = ("department", "role")
-        indexes = [
-            models.Index(fields=["department"]),
-            models.Index(fields=["role"]),
-        ]
-        db_table = "iam_department_allowed_role"
+#     class Meta:
+#         unique_together = ("department", "role")
+#         indexes = [
+#             models.Index(fields=["department"]),
+#             models.Index(fields=["role"]),
+#         ]
+#         db_table = "iam_department_allowed_role"

@@ -16,10 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from apps.identity.urls import me_urlpatterns
 
 # from apps.services.jwks import jwks_view
-from apps.identity.views.me.me import MeView
-from apps.identity.views.me.me_systems import MeSystemsView 
+
 
 
 
@@ -36,8 +36,7 @@ urlpatterns = [
     path("api/v1/", include("apps.authz.urls")),
 
     # Self-scoped identity
-    path("api/v1/me/", MeView.as_view(), name="me"),
-    path("api/v1/me/systems/", MeSystemsView.as_view(), name="me-systems"),
+    path("api/v1/me/", include(me_urlpatterns)),
 ]
 
 

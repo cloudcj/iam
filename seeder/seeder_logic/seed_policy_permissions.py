@@ -1,6 +1,6 @@
 # permissions/seeder/seed_policy_permissions.py
 from apps.access.models import Policy, Permission, PolicyPermission
-from access_control.policies import POLICIES_REGISTRY
+from registry.policies import POLICIES_REGISTRY
 
 
 def seed_policy_permissions(policy_obj, policy_def):

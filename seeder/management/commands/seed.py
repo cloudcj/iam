@@ -15,9 +15,9 @@ from seeder.seeder_logic import (
     seed_policy_permissions,
     seed_roles,
     seed_role_policies,
-    seed_role_permissions,
+    # seed_role_permissions,
     seed_departments,
-    seed_department_allowed_roles,
+    seed_department_allowed_systems,
     seed_superadmin
 
 )
@@ -39,7 +39,7 @@ class Command(BaseCommand):
 
         self.stdout.write("🏢 Seeding departments...")
         seed_departments()
-        seed_department_allowed_roles()
+        seed_department_allowed_systems()
 
         self.stdout.write("👑 Seeding superadmin...")
         seed_superadmin()

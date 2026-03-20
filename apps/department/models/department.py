@@ -21,7 +21,6 @@
 import uuid
 from django.db import models
 
-
 class Department(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -36,14 +35,47 @@ class Department(models.Model):
     # human-readable
     name = models.CharField(max_length=100)
 
-    allowed_roles = models.ManyToManyField(
-        "access.Role",
-        through="access.DepartmentAllowedRole",
-        related_name="allowed_departments",
-    )
+    # allowed_roles = models.ManyToManyField(
+    #     "access.Role",
+    #     through="access.DepartmentAllowedRole",
+    #     related_name="allowed_departments",
+    # )
+
+    @property
+    def allowed_systems(self):
+        return list(
+            self.allowed_system_entries.values_list("system", flat=True)
+        )
 
     def __str__(self):
         return self.name
 
     class Meta:
         db_table = "iam_department"
+
+
+# class Department(models.Model):
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+#     # stable system identifier
+#     code = models.CharField(
+#         max_length=64,
+#         unique=True,
+#         db_index=True,
+#         help_text="Stable department identifier (DO NOT CHANGE)",
+#     )
+
+#     # human-readable
+#     name = models.CharField(max_length=100)
+
+#     allowed_roles = models.ManyToManyField(
+#         "access.Role",
+#         through="access.DepartmentAllowedRole",
+#         related_name="allowed_departments",
+#     )
+
+#     def __str__(self):
+#         return self.name
+
+#     class Meta:
+#         db_table = "iam_department"

@@ -3,9 +3,8 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from apps.access.models import (
     Role,
     UserRole,
-    DepartmentAllowedRole,
+    DepartmentAllowedSystem,
 )
-from apps.department.models import UserDepartment
 
 
 def assign_role_to_user(*, user, role_code: str):
@@ -13,17 +12,10 @@ def assign_role_to_user(*, user, role_code: str):
     Assign a role to a user ONLY if the user's department allows it.
     """
 
-    # 1️⃣ get user's department
-    try:
-        user_department = (
-            UserDepartment.objects
-            .select_related("department")
-            .get(user=user)
-        )
-    except UserDepartment.DoesNotExist:
+    # 1️⃣ get user's department (direct FK)
+    department = getattr(user, "department", None)
+    if not department:
         raise ValidationError("User has no department assigned")
-
-    department = user_department.department
 
     # 2️⃣ get role
     try:
@@ -31,16 +23,7 @@ def assign_role_to_user(*, user, role_code: str):
     except Role.DoesNotExist:
         raise ValidationError(f"Role '{role_code}' does not exist")
 
-    # 3️⃣ validate department → role
-    if not DepartmentAllowedRole.objects.filter(
-        department=department,
-        role=role,
-    ).exists():
-        raise ValidationError(
-            f"Role '{role.code}' is not allowed in department '{department.code}'"
-        )
-
-    # 4️⃣ assign role (idempotent)
+    # 3️⃣ assign role (idempotent — system-level constraint removed, use policy assignment)
     UserRole.objects.get_or_create(
         user=user,
         role=role,
@@ -51,11 +34,8 @@ def assign_role_to_user(*, user, role_code: str):
 # apps/access/services/assignment_service.py
 
 def validate_role_assignment(*, department, role):
-    if not DepartmentAllowedRole.objects.filter(
-        department=department,
-        role=role,
-    ).exists():
-        raise PermissionDenied("Role not allowed for this department")
+    # Department system validation (roles are no longer directly restricted per department)
+    pass
 
 
 

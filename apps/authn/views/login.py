@@ -52,12 +52,14 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.authn.services.auth_service import login
 from apps.authn.tokens.cookies import set_auth_cookies
+from apps.authn.throttles import LoginRateThrottle
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class LoginView(APIView):
     authentication_classes = []
     permission_classes = []
+    throttle_classes = [LoginRateThrottle]   # ← add this line
 
     def post(self, request):
         try:

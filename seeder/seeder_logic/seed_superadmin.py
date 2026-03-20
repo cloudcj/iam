@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 
-from apps.department.models import Department, UserDepartment
+from apps.department.models import Department
 # from apps.access.services.role_validation import validate_role_assignment
 # from apps.access.services.role_assignment import assign_roles_to_user
 

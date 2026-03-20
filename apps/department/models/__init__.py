@@ -1,2 +1,2 @@
 from .department import Department
-from .user_department import UserDepartment
+# from .user_department import UserDepartment

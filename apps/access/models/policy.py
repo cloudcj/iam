@@ -18,9 +18,9 @@ class Policy(models.Model):
         help_text="Stable policy identifier (DO NOT CHANGE)",
     )
 
-    label = models.CharField(
+    name = models.CharField(
         max_length=100,
-        help_text="Human-readable label (e.g. AZ – Read & Update)",
+        help_text="Human-readable name (e.g. AZ – Read & Update)",
     )
 
     system = models.CharField(

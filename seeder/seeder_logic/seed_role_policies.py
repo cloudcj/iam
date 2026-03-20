@@ -1,5 +1,5 @@
 from apps.access.models import Role as RoleModel, Policy, RolePolicy
-from access_control.roles import ROLES_REGISTRY  # aggregated IAM + inventory + etc
+from registry.roles import ROLES_REGISTRY  # aggregated IAM + inventory + etc
 
 
 def seed_role_policies(role_obj, role_def):

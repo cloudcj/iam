@@ -25,7 +25,7 @@ from rest_framework import status
 #         ]
 
 #         return Response({"allowed": allowed})
-from apps.authz.service.authorization_service import AuthorizationService
+from apps.authz.services.authorization_service import AuthorizationService
 
 
 class BatchAuthorizeView(APIView):

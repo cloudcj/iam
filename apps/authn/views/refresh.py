@@ -2,12 +2,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import AuthenticationFailed
 
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 
-from apps.authn.services.auth_service import refresh_tokens
+from apps.authn.tokens.service import refresh_tokens
 from apps.authn.tokens.cookies import (
     set_auth_cookies,
     clear_auth_cookies,
@@ -30,7 +30,7 @@ class RefreshTokenView(APIView):
 
         try:
             tokens = refresh_tokens(refresh_token=refresh_token)
-        except PermissionDenied:
+        except AuthenticationFailed:
             # 🔥 refresh already rotated or invalid
             response = Response(status=status.HTTP_401_UNAUTHORIZED)
             clear_auth_cookies(response)

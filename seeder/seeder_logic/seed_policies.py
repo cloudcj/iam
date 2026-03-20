@@ -1,5 +1,5 @@
 from apps.access.models import Policy
-from access_control.policies import POLICIES_REGISTRY
+from registry.policies import POLICIES_REGISTRY
 from .seed_policy_permissions import seed_policy_permissions
 
 def seed_policies():
@@ -7,11 +7,11 @@ def seed_policies():
         policy_obj, _ = Policy.objects.update_or_create(
             code=policy.code,
             defaults={
-                "label": policy.label,
+                "name": policy.name,
                 "system": policy.system,
                 "resource": policy.resource,
                 "description": (
-                    f"Grants {policy.label} access "
+                    f"Grants {policy.name} access "
                     # f"to {policy.system.upper()} "
                     # f"{policy.resource.upper()}"
                 ),

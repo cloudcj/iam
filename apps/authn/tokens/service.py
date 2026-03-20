@@ -1,90 +1,105 @@
-from rest_framework_simplejwt.tokens import RefreshToken
 
+import logging
+
+from django.contrib.auth import get_user_model
+from django.conf import settings
+# from django.core.exceptions import PermissionDenied
+
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework.exceptions import AuthenticationFailed
+
+from apps.authn.blacklist import blacklist_token,is_blacklisted
+
+logger = logging.getLogger(__name__)
 
 def issue_user_tokens(*, user):
+    from apps.authz.services.authorization_service import AuthorizationService
+
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
 
-    # Identity only
+    # ✅ Identity
     access["username"] = user.username
-    # SimpleJWT already sets:
-    # - sub (user id)
-    # - exp
-    # - iat
-    # - jti
-    # - token_type
+    access["typ"] = "access"
+    access["is_superuser"] = user.is_superuser
+
+    # ✅ Superuser carries empty permissions — bypasses checks locally
+    if user.is_superuser:
+        access["permissions"] = []
+        access["systems"] = []
+    else:
+        permission_codes = AuthorizationService.get_user_permission_codes(user)
+        access["permissions"] = sorted(permission_codes)
+        access["systems"] = sorted({
+            code.split(".")[0]
+            for code in permission_codes
+        })
 
     return {
         "access": str(access),
         "refresh": str(refresh),
     }
 
+def refresh_tokens(*, refresh_token: str):
+    from apps.authz.services.authorization_service import AuthorizationService
+
+    if not refresh_token:
+        raise AuthenticationFailed("Refresh token missing")
+
+    try:
+        old_refresh = RefreshToken(refresh_token)
+    except TokenError:
+        raise AuthenticationFailed("Invalid or expired refresh token")
+
+    # 🔐 Check if already blacklisted (reuse/replay detection)
+    if is_blacklisted(old_refresh["jti"]):
+        raise AuthenticationFailed("Invalid or expired refresh token")
+
+    try:
+        user_id_claim = settings.SIMPLE_JWT["USER_ID_CLAIM"]
+        user_id = old_refresh[user_id_claim]
+        user = get_user_model().objects.get(id=user_id)
+    except get_user_model().DoesNotExist:
+        raise AuthenticationFailed("Invalid or expired refresh token")
+
+    # Blacklist old refresh token in Redis
+    blacklist_token(old_refresh["jti"], old_refresh["exp"])
+
+    # Issue a fresh token pair
+    new_refresh = RefreshToken.for_user(user)
+    new_access = new_refresh.access_token
+
+    # ✅ Identity
+    new_access["username"] = user.username
+    new_access["typ"] = "access"
+    new_access["is_superuser"] = user.is_superuser 
+
+    # ✅ Re-embed fresh permissions (picks up any changes since last login)
+    if user.is_superuser:
+        new_access["permissions"] = []
+        new_access["systems"] = []
+    else:
+        permission_codes = AuthorizationService.get_user_permission_codes(user)
+        new_access["permissions"] = sorted(permission_codes)
+        new_access["systems"] = sorted({
+            code.split(".")[0]
+            for code in permission_codes
+        })
+
+    return {
+        "access": str(new_access),
+        "refresh": str(new_refresh),
+    }
 
 
-
-
-
-
-# identity/auth/tokens/service.py
-# from rest_framework_simplejwt.tokens import RefreshToken
-# from uuid import uuid4
-# from .tokens import GaiaAccessToken
-
-# ACTIVE_KID = "key-01"
-
-
-
-# def issue_user_tokens(*, user, permissions):
-#     # 1️⃣ Refresh token (SimpleJWT, HS256)
+# def issue_user_tokens(*, user):
 #     refresh = RefreshToken.for_user(user)
-
-#     # 2️⃣ Access token (IAM, RS256 + kid)
-#     access = encode_access_token(
-#         user=user,
-#         permissions=permissions,
-#     )
-
-#     return {
-#         "access": access,          # RS256 (IAM)
-#         "refresh": str(refresh),   # HS256 (SimpleJWT)
-#     }
-
-
-
-
-
-
-# def issue_user_tokens(*, user, permissions):
-#     refresh = RefreshToken.for_user(user)
-#        # 👇 use custom access token
-#     # access = GaiaAccessToken.for_user(user)
 #     access = refresh.access_token
 
-#     # ------------------
-#     # Identity
-#     # ------------------
-#     subject = f"user:{user.id}"
-#     access["sub"] = subject
-#     refresh["sub"] = subject
-
+#     # ✅ Identity only — no permissions
 #     access["username"] = user.username
-#     refresh["username"] = user.username
-
-#     # ------------------
-#     # Authorization
-#     # ------------------
-#     access["permissions"] = permissions
-#     refresh["permissions"] = permissions
-
-#     # 🔑 FORCE uniqueness per login (BEST PRACTICE)
-#     access["jti"] = uuid4().hex
-
-
-#     # ------------------
-#     # # Key identification (JWKS / rotation)
-#     # # ------------------
-#     # access.headers["kid"] = ACTIVE_KID
-#     # refresh.headers["kid"] = ACTIVE_KID
+#     access["typ"] = "access"
 
 #     return {
 #         "access": str(access),
@@ -92,36 +107,41 @@ def issue_user_tokens(*, user):
 #     }
 
 
+# from apps.authn.blacklist import blacklist_token,is_blacklisted
 
+# def refresh_tokens(*, refresh_token: str):
+#     if not refresh_token:
+#         raise AuthenticationFailed("Refresh token missing")
 
+#     try:
+#         old_refresh = RefreshToken(refresh_token)
+#     except TokenError:
+#         raise AuthenticationFailed("Invalid or expired refresh token")
 
-# def issue_service_token(*, service_name, permissions):
-#     token = AccessToken()
+#     # 🔐 Check if already blacklisted (reuse/replay detection)
+#     if is_blacklisted(old_refresh["jti"]):
+#         raise AuthenticationFailed("Invalid or expired refresh token")
 
-#     token["sub"] = f"service:{service_name}"
-#     token["svc"] = service_name
-#     token["permissions"] = permissions
+#     try:
+#         user_id_claim = settings.SIMPLE_JWT["USER_ID_CLAIM"]
+#         user_id = old_refresh[user_id_claim]
+#         user = get_user_model().objects.get(id=user_id)
+#     except get_user_model().DoesNotExist:
+#         raise AuthenticationFailed("Invalid or expired refresh token")
 
-#     token["iss"] = ISSUER
-#     token["aud"] = AUDIENCE
+#     # Blacklist old refresh token in Redis
+#     blacklist_token(old_refresh["jti"], old_refresh["exp"])
 
-#     return str(token)
-
-
-
-
-# def issue_tokens(user, *, permissions):
-#     refresh = RefreshToken.for_user(user)
-#     access = refresh.access_token
-    
-#     access["permissions"] = permissions
-#     access["username"] = user.username
+#     # Issue a fresh token pair (proper rotation)
+#     new_refresh = RefreshToken.for_user(user)
+#     new_access = new_refresh.access_token
+#     new_access["username"] = user.username
+#     new_access["typ"] = "access"
 
 #     return {
-#         "access": str(access),
-#         "refresh": str(refresh),
+#         "access": str(new_access),
+#         "refresh": str(new_refresh),
 #     }
+# def revoke_tokens(refresh_token):
+#     blacklist_token(refresh_token["jti"], refresh_token["exp"])
 
-
-def revoke_tokens(refresh_token):
-    refresh_token.blacklist()
