@@ -5,7 +5,7 @@ from ..systems.inventory import INVENTORY_SERVICE
 _POLICIES = [
     # Full inventory policies
     Policy(
-        code="inventory.full",
+        code="inventory.full",        # was: inventory.full_access
         name="Inventory – Full Access",
         system="inventory",
         resource="*",
@@ -13,8 +13,8 @@ _POLICIES = [
         visible_in_ui=False,
     ),
     Policy(
-        code="inventory.read_all",
-        name="Inventory – Read All",
+        code="inventory.read_only",   # was: inventory.read_all
+        name="Inventory – Read Only",
         system="inventory",
         resource="*",
         permissions=read_permissions_for_service(INVENTORY_SERVICE),
@@ -35,7 +35,7 @@ _POLICIES = [
         resource="az",
         permissions=(
             "inventory.az.read",
-            "inventory.az.create"
+            "inventory.az.create",
             "inventory.az.update",
         ),
     ),
