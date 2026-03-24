@@ -21,10 +21,36 @@ from seeder.seeder_logic import (
     seed_superadmin
 
 )
+
 class Command(BaseCommand):
     help = "Seed IAM data (RBAC + bootstrap accounts)"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--fresh",
+            action="store_true",
+            help="Wipe all data before seeding (permissions, policies, roles, departments)",
+        )
+
     def handle(self, *args, **options):
+        if options["fresh"]:
+            self.stdout.write(self.style.WARNING("🗑️  --fresh: wiping existing RBAC data..."))
+            from apps.access.models import RolePolicy, PolicyPermission, Policy, Permission, Role, DepartmentAllowedSystem, UserRole
+            from apps.department.models import Department
+            from apps.identity.models import User
+
+            UserRole.objects.all().delete()
+            User.objects.all().delete()
+            DepartmentAllowedSystem.objects.all().delete()
+            Department.objects.all().delete()
+            RolePolicy.objects.all().delete()
+            PolicyPermission.objects.all().delete()
+            Role.objects.all().delete()
+            Policy.objects.all().delete()
+            Permission.objects.all().delete()
+
+            self.stdout.write(self.style.WARNING("✅ Wipe complete."))
+
         self.stdout.write("🌱 Seeding IAM data...")
 
         self.stdout.write("🔐 Seeding permissions...")
@@ -45,4 +71,3 @@ class Command(BaseCommand):
         seed_superadmin()
 
         self.stdout.write(self.style.SUCCESS("✅ IAM seeding complete"))
-

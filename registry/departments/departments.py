@@ -19,7 +19,7 @@ _DEPARTMENTS = [
     Department(
         code="CLOUD_MONITORING",
         name="Cloud Monitoring",
-        allowed_systems=("",),
+        allowed_systems=("ghidora",),
     ),
 ]
 

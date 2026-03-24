@@ -1,5 +1,6 @@
 from .inventory import INVENTORY_SERVICE
 from .iam import IAM_SERVICE
+from .ghidora import GHIDORA_SERVICE
 
 # def all_permissions_for_system(system_name: str) -> tuple[str, ...]:
 #     service = PERMISSION_REGISTRY[system_name]
@@ -27,4 +28,5 @@ from .iam import IAM_SERVICE
 PERMISSION_REGISTRY = {
     "inventory": INVENTORY_SERVICE,
     "iam": IAM_SERVICE,
+    "ghidora": GHIDORA_SERVICE
 }

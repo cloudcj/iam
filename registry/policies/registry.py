@@ -1,7 +1,7 @@
 from .inventory import INVENTORY_POLICIES
 from .iam import IAM_POLICIES
 from .global_policies import GLOBAL_POLICIES
-
+from .ghidora import GHIDORA_POLICIES
 
 # def all_permissions_for_system(system_name: str) -> tuple[str, ...]:
 #     service = POLICIES_REGISTRY[system_name]
@@ -28,5 +28,6 @@ from .global_policies import GLOBAL_POLICIES
 POLICIES_REGISTRY = {
     **INVENTORY_POLICIES,
     **IAM_POLICIES,
+    **GHIDORA_POLICIES,
     **GLOBAL_POLICIES,
 }
