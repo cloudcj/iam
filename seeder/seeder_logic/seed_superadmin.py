@@ -27,6 +27,8 @@ def seed_superadmin():
     user, created = User.objects.get_or_create(
         username="SuperAdmin",
         defaults={
+            "first_name": "super",
+            "last_name": "user",
             "email": "admin@gaia.test",
             "is_active": True,
             "is_staff": True,
