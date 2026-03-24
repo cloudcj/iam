@@ -1,4 +1,4 @@
-from .inventory import INVENTORY_POLICIES
+from .inventory import TROPOS_POLICIES
 from .iam import IAM_POLICIES
 from .global_policies import GLOBAL_POLICIES
 from .ghidora import GHIDORA_POLICIES
@@ -26,7 +26,7 @@ from .ghidora import GHIDORA_POLICIES
 
 
 POLICIES_REGISTRY = {
-    **INVENTORY_POLICIES,
+    **TROPOS_POLICIES,
     **IAM_POLICIES,
     **GHIDORA_POLICIES,
     **GLOBAL_POLICIES,

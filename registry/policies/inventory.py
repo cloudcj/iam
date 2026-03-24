@@ -1,25 +1,25 @@
 from .schema import Policy
 from ..helpers import all_permissions_for_service, read_permissions_for_service
-from ..systems.inventory import INVENTORY_SERVICE
+from ..systems.tropos import TROPOS_SERVICE
 
 _POLICIES = [
     # --------------------------------------------------
     # System-wide (used by platform roles)
     # --------------------------------------------------
     Policy(
-        code="inventory.full",
-        name="Inventory – Full Access",
-        system="inventory",
+        code="tropos.full",
+        name="tropos – Full Access",
+        system="tropos",
         resource="*",
-        permissions=all_permissions_for_service(INVENTORY_SERVICE),
+        permissions=all_permissions_for_service(TROPOS_SERVICE),
         visible_in_ui=False,
     ),
     Policy(
-        code="inventory.read_only",
-        name="Inventory – Read Only",
-        system="inventory",
+        code="tropos.read_only",
+        name="tropos – Read Only",
+        system="tropos",
         resource="*",
-        permissions=read_permissions_for_service(INVENTORY_SERVICE),
+        permissions=read_permissions_for_service(TROPOS_SERVICE),
         visible_in_ui=False,
     ),
 
@@ -27,33 +27,33 @@ _POLICIES = [
     # AZ resource
     # --------------------------------------------------
     Policy(
-        code="inventory.az.read_only",
+        code="tropos.az.read_only",
         name="AZ – Read Only",
-        system="inventory",
+        system="tropos",
         resource="az",
-        permissions=("inventory.az.read",),
+        permissions=("tropos.az.read",),
     ),
     Policy(
-        code="inventory.az.read_update",
+        code="tropos.az.read_update",
         name="AZ – Read & Update",
-        system="inventory",
+        system="tropos",
         resource="az",
         permissions=(
-            "inventory.az.read",
-            "inventory.az.create",
-            "inventory.az.update",
+            "tropos.az.read",
+            "tropos.az.create",
+            "tropos.az.update",
         ),
     ),
     Policy(
-        code="inventory.az.full",
+        code="tropos.az.full",
         name="AZ – Full Access",
-        system="inventory",
+        system="tropos",
         resource="az",
         permissions=(
-            "inventory.az.read",
-            "inventory.az.create",
-            "inventory.az.update",
-            "inventory.az.delete",
+            "tropos.az.read",
+            "tropos.az.create",
+            "tropos.az.update",
+            "tropos.az.delete",
         ),
     ),
 
@@ -61,15 +61,15 @@ _POLICIES = [
     # Device resource
     # --------------------------------------------------
     Policy(
-        code="inventory.device.read_only",
+        code="tropos.device.read_only",
         name="Device – Read Only",
-        system="inventory",
+        system="tropos",
         resource="device",
-        permissions=("inventory.device.read",),
+        permissions=("tropos.device.read",),
     ),
 ]
 
-INVENTORY_POLICIES = {p.code: p for p in _POLICIES}
+TROPOS_POLICIES = {p.code: p for p in _POLICIES}
 
 
 

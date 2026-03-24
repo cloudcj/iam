@@ -40,9 +40,9 @@
 
 from .schema import make_system
 
-INVENTORY_SERVICE = make_system(
-    name="inventory",
-    label="Inventory",
+TROPOS_SERVICE = make_system(
+    name="tropos",
+    label="Tropos",
     resources={
         "region": ("Regions",             ["read", "create", "update", "delete"]),
         "az":     ("Availability Zones",  ["read", "create", "update", "delete"]),

@@ -25,7 +25,7 @@ _ROLES = [
         code="platform.admin",
         name="Platform Admin",
         policies=(
-            "inventory.full",
+            "tropos.full",
             "iam.full",
             # add each system's full policy as you add systems
         ),
@@ -34,7 +34,7 @@ _ROLES = [
         code="platform.viewer",
         name="Platform Viewer",
         policies=(
-            "inventory.read_only",
+            "tropos.read_only",
             "iam.read_only",
             # add each system's read_only policy as you add systems
         ),

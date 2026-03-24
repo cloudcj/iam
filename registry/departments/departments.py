@@ -4,17 +4,17 @@ _DEPARTMENTS = [
     Department(
         code="GLOBAL",
         name="Global",
-        allowed_systems=("inventory",),
+        allowed_systems=("tropos",),
     ),
     Department(
         code="CLOUD_PLATFORM",
         name="Cloud Platform",
-        allowed_systems=("inventory",),
+        allowed_systems=("tropos",),
     ),
     Department(
         code="CLOUD_SOLUTIONS",
         name="Cloud Solutions",
-        allowed_systems=("inventory",),
+        allowed_systems=("tropos",),
     ),
     Department(
         code="CLOUD_MONITORING",

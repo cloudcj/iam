@@ -1,4 +1,4 @@
-from .inventory import INVENTORY_SERVICE
+from .tropos import TROPOS_SERVICE
 from .iam import IAM_SERVICE
 from .ghidora import GHIDORA_SERVICE
 
@@ -26,7 +26,7 @@ from .ghidora import GHIDORA_SERVICE
 
 
 PERMISSION_REGISTRY = {
-    "inventory": INVENTORY_SERVICE,
+    "inventory": TROPOS_SERVICE,
     "iam": IAM_SERVICE,
     "ghidora": GHIDORA_SERVICE
 }
