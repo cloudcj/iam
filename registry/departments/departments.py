@@ -1,16 +1,15 @@
 from .schema import Department
 
-
 _DEPARTMENTS = [
     Department(
         code="GLOBAL",
         name="Global",
-        allowed_systems=("iam", "inventory"),
+        allowed_systems=("inventory",),
     ),
     Department(
         code="CLOUD_PLATFORM",
         name="Cloud Platform",
-        allowed_systems=("iam", "inventory"),
+        allowed_systems=("inventory",),
     ),
     Department(
         code="CLOUD_SOLUTIONS",
@@ -20,11 +19,12 @@ _DEPARTMENTS = [
     Department(
         code="CLOUD_MONITORING",
         name="Cloud Monitoring",
-        allowed_systems=("inventory",),
+        allowed_systems=("",),
     ),
 ]
 
 DEPARTMENTS = {d.code: d for d in _DEPARTMENTS}
+
 
 ##########################################################
 

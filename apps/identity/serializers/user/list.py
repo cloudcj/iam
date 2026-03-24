@@ -29,13 +29,45 @@ from apps.identity.models import User
 #         ]
 #         read_only_fields = fields
 
+#######################################################################
+
+# class UserListSerializer(serializers.ModelSerializer):
+#     department = serializers.SerializerMethodField()
+#     roles = serializers.SerializerMethodField()
+
+#     def get_department(self, obj):
+#         link = obj.user_department.first()
+#         return link.department.code if link else None
+
+#     def get_roles(self, obj):
+#         return [ur.role.code for ur in obj.user_roles.all()]
+
+#     class Meta:
+#         model = User
+#         fields = [
+#             "id",
+#             "username",
+#             "email",
+#             "is_active",
+#             "department",
+#             "roles",
+#         ]
+#         read_only_fields = fields
+
+########################################################################
+
 class UserListSerializer(serializers.ModelSerializer):
     department = serializers.SerializerMethodField()
     roles = serializers.SerializerMethodField()
 
     def get_department(self, obj):
-        link = obj.user_department.first()
-        return link.department.code if link else None
+        if obj.department:
+            return {
+                "id": str(obj.department.id),
+                "code": obj.department.code,
+                "name": obj.department.name,
+            }
+        return None
 
     def get_roles(self, obj):
         return [ur.role.code for ur in obj.user_roles.all()]

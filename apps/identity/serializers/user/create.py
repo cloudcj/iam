@@ -1,26 +1,66 @@
+# from rest_framework import serializers
+# from django.contrib.auth.password_validation import validate_password
+
+# class UserCreateSerializer(serializers.Serializer):
+#     username = serializers.CharField()
+#     password = serializers.CharField(write_only=True)
+#     email = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
+
+#     department = serializers.UUIDField(required=False)
+
+#     roles = serializers.ListField(
+#         child=serializers.UUIDField(),
+#         required=False,
+#     )
+
+#     policies = serializers.ListField(
+#         child=serializers.UUIDField(),
+#         required=False,
+#     )
+
+#     def validate_password(self, value):
+#         validate_password(value)
+#         return value
+
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 
+
 class UserCreateSerializer(serializers.Serializer):
     username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-    email = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
 
-    department = serializers.UUIDField(required=False)
+    password = serializers.CharField(write_only=True)
+
+    email = serializers.EmailField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
+
+    department = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+    )
 
     roles = serializers.ListField(
         child=serializers.UUIDField(),
-        required=False,
+        required=True,
+        allow_empty=False,
     )
 
-    policies = serializers.ListField(
+    permissions = serializers.ListField(
         child=serializers.UUIDField(),
         required=False,
+        allow_empty=True,
+        default=list,
     )
 
     def validate_password(self, value):
         validate_password(value)
         return value
+
+
+
 
 # class UserCreateSerializer(serializers.Serializer):
 #     username = serializers.CharField()

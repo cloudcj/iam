@@ -22,15 +22,14 @@ _ROLES = [
     Role(
         code="dept.viewer",
         name="Department Viewer",
-        policies=("iam.user.read_only",),   # was: "iam.user.operator" (didn't exist)
+        policies=("iam.user.read_only",),
     ),
     Role(
         code="dept.admin",
         name="Department Admin",
-        policies=("iam.user.manage",),      # was: "iam.user.admin" (old name)
+        policies=("iam.user.manage",),
     ),
 ]
-
 
 IAM_ROLES = {r.code: r for r in _ROLES}
 

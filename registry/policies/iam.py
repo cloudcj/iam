@@ -1,9 +1,12 @@
+# permissions/policies/iam.py
 from .schema import Policy
 from ..helpers import all_permissions_for_service, read_permissions_for_service
 from ..systems.iam import IAM_SERVICE
 
 _POLICIES = [
+    # --------------------------------------------------
     # System-wide (used by platform roles)
+    # --------------------------------------------------
     Policy(
         code="iam.full",
         name="IAM – Full Access",
@@ -21,7 +24,9 @@ _POLICIES = [
         visible_in_ui=False,
     ),
 
+    # --------------------------------------------------
     # User resource (used by dept roles)
+    # --------------------------------------------------
     Policy(
         code="iam.user.read_only",
         name="IAM Users – Read Only",
@@ -41,12 +46,15 @@ _POLICIES = [
             "iam.user.delete",
             "iam.user.update_role",
             "iam.user.update_policy",
+            "iam.user.assign_policy",
+            "iam.user.remove_policy",
             # no update_dept — dept.admin cannot move users between departments
         ),
     ),
 ]
 
 IAM_POLICIES = {p.code: p for p in _POLICIES}
+
 
 
 

@@ -1,6 +1,6 @@
-from apps.department.models import Department
-from apps.access.models import DepartmentAllowedSystem
-from registry.departments import DEPARTMENT_REGISTRY
+# from apps.department.models import Department
+# from apps.access.models import DepartmentAllowedSystem
+# from registry.departments import DEPARTMENT_REGISTRY
 
 
 # def seed_department_allowed_roles():
@@ -19,15 +19,31 @@ from registry.departments import DEPARTMENT_REGISTRY
 
 #         # ✅ Correct field name
 #         db_department.allowed_roles.set(roles)
+###########################################################################################
+# def seed_department_allowed_systems():
+#     for dept in DEPARTMENT_REGISTRY.values():
+#         db_department = Department.objects.get(code=dept.code)
+
+#         DepartmentAllowedSystem.objects.filter(department=db_department).delete()
+
+#         for system in dept.allowed_systems:
+#             DepartmentAllowedSystem.objects.create(
+#                 department=db_department,
+#                 system=system,
+#             )
+
+from apps.department.models import Department
+from apps.access.models import DepartmentAllowedSystem
+from registry.departments import DEPARTMENT_REGISTRY
+
 
 def seed_department_allowed_systems():
     for dept in DEPARTMENT_REGISTRY.values():
         db_department = Department.objects.get(code=dept.code)
 
-        DepartmentAllowedSystem.objects.filter(department=db_department).delete()
-
         for system in dept.allowed_systems:
-            DepartmentAllowedSystem.objects.create(
+            DepartmentAllowedSystem.objects.get_or_create(
                 department=db_department,
                 system=system,
             )
+

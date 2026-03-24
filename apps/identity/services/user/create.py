@@ -1,4 +1,3 @@
-# apps/identity/services/user/create.py
 
 
 from django.db import transaction
@@ -6,20 +5,13 @@ from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 
 from apps.department.models import Department
-from apps.access.models import Policy, UserPolicy, UserRole, Role
-
-User = get_user_model()
-
-
-from django.db import transaction
-from django.contrib.auth import get_user_model
-from rest_framework.exceptions import ValidationError
-
-from apps.department.models import Department
-from apps.access.models import Policy, UserPolicy, UserRole, Role
+from apps.access.models import Permission, UserPermission, UserRole, Role
+from apps.common.constants import RoleCodes, HIDDEN_FROM_IAM_ADMIN
+from apps.common.helpers.authz.role_helpers import has_role
 from uuid import UUID
 
 User = get_user_model()
+
 
 @transaction.atomic
 def create_user(
@@ -27,141 +19,105 @@ def create_user(
     actor,
     username: str,
     password: str,
+    email: str | None = None,
     department_id: UUID | None = None,
     role_ids: list[UUID] | None = None,
-    policy_ids: list[UUID] | None = None,
-    email: str | None = None,
 ):
     role_ids = role_ids or []
-    policy_ids = policy_ids or []
 
     # --------------------------------------------------
-    # 1️⃣ Authority Check
+    # 1️⃣ Identify actor type
     # --------------------------------------------------
-    if not actor.is_superuser and not actor.has_permission("iam.user.create"):
+    is_superuser = actor.is_superuser
+    is_platform_admin = has_role(actor, RoleCodes.PLATFORM_ADMIN)
+    is_dept_admin = has_role(actor, RoleCodes.DEPT_ADMIN)
+
+    if not is_superuser and not is_platform_admin and not is_dept_admin:
         raise ValidationError("You do not have permission to create users.")
 
+    # --------------------------------------------------
+    # 2️⃣ Username uniqueness
+    # --------------------------------------------------
     if User.objects.filter(username=username).exists():
         raise ValidationError({"username": ["Username already exists."]})
 
     # --------------------------------------------------
-    # 2️⃣ Resolve Department
+    # 3️⃣ Resolve department
+    #    Superuser / Platform Admin → caller provides department (required)
+    #    Dept Admin                 → auto-set to actor's department
     # --------------------------------------------------
-    if actor.is_superuser:
+    if is_superuser or is_platform_admin:
         if not department_id:
             raise ValidationError({"department": ["Department is required."]})
-
         try:
             department = Department.objects.get(id=department_id)
         except Department.DoesNotExist:
-            raise ValidationError({"department": ["Invalid department ID."]})
+            raise ValidationError({"department": ["Invalid department."]})
     else:
         department = actor.department
 
     # --------------------------------------------------
-    # 3️⃣ Resolve Allowed Roles (once)
+    # 4️⃣ Resolve roles by UUID
     # --------------------------------------------------
-    allowed_roles = department.allowed_roles.all()
+    if not role_ids:
+        raise ValidationError({"roles": ["At least one role is required."]})
 
-    # --------------------------------------------------
-    # 4️⃣ Resolve Roles by UUID
-    # --------------------------------------------------
     roles = Role.objects.filter(id__in=role_ids)
-
     found_role_ids = set(roles.values_list("id", flat=True))
     missing_roles = set(role_ids) - found_role_ids
 
-    
     if missing_roles:
         raise ValidationError({"roles": ["Some roles are invalid."]})
 
-    # if not actor.is_superuser:
-    #     allowed_role_ids = set(
-    #         allowed_roles.values_list("id", flat=True)
-    #     )
-    #     invalid_roles = set(role_ids) - allowed_role_ids
+    # --------------------------------------------------
+    # 5️⃣ Validate role scope per actor
+    #
+    #    Superuser      → any role allowed
+    #    Platform Admin → no platform.admin + dept allowed_systems
+    #    Dept Admin     → no hidden roles + dept allowed_systems
+    # --------------------------------------------------
+    allowed_systems = set(department.allowed_systems)
 
-    #     if invalid_roles:
-    #         raise ValidationError(
-    #             {"roles": ["Some roles are not allowed for this department."]}
-    #         )
+    if is_platform_admin:
+        for role in roles:
+            if role.code == RoleCodes.PLATFORM_ADMIN:
+                raise ValidationError(
+                    {"roles": ["You cannot assign the platform.admin role."]}
+                )
+            system = role.code.split(".")[0]
+            if system not in allowed_systems:
+                raise ValidationError(
+                    {"roles": [f"Role '{role.code}' is not allowed for this department."]}
+                )
 
-    allowed_role_ids = set(
-    allowed_roles.values_list("id", flat=True)
-    )
+    elif is_dept_admin:
+        for role in roles:
+            if role.code in HIDDEN_FROM_IAM_ADMIN:
+                raise ValidationError(
+                    {"roles": [f"Role '{role.code}' cannot be assigned by department admin."]}
+                )
+            system = role.code.split(".")[0]
+            if system not in allowed_systems:
+                raise ValidationError(
+                    {"roles": [f"Role '{role.code}' is not allowed for this department."]}
+                )
 
-    invalid_roles = set(role_ids) - allowed_role_ids
+    # --------------------------------------------------
+    # 6️⃣ Expand roles → policies → permissions
+    #    Role is a preset. We walk all the way down to
+    #    individual permissions — that is what gets saved.
+    # --------------------------------------------------
+    permissions = Permission.objects.filter(
+        permission_policies__policy__policy_roles__role__in=roles
+    ).distinct()
 
-    if invalid_roles:
+    if not permissions.exists():
         raise ValidationError(
-            {"roles": ["Some roles are not allowed for this department."]}
+            {"roles": ["Selected roles have no permissions assigned. Contact your administrator."]}
         )
 
     # --------------------------------------------------
-    # 5️⃣ Expand Role → Policies
-    # --------------------------------------------------
-    role_policy_ids = set(
-        Policy.objects.filter(
-            policy_roles__role__in=roles
-        ).values_list("id", flat=True)
-    )
-
-    # --------------------------------------------------
-    # 6️⃣ Resolve Direct Policies by UUID
-    # --------------------------------------------------
-    direct_policies = Policy.objects.filter(id__in=policy_ids)
-
-    found_policy_ids = set(direct_policies.values_list("id", flat=True))
-    missing_policies = set(policy_ids) - found_policy_ids
-
-    if missing_policies:
-        raise ValidationError({"policies": ["Some policies are invalid."]})
-
-    direct_policy_ids = found_policy_ids
-
-    # Department policy scope enforcement
-    # if not actor.is_superuser:
-    #     allowed_policy_ids = set(
-    #         Policy.objects.filter(
-    #             policy_roles__role__in=allowed_roles
-    #         ).values_list("id", flat=True)
-    #     )
-
-    #     invalid_policies = direct_policy_ids - allowed_policy_ids
-
-    #     if invalid_policies:
-    #         raise ValidationError(
-    #             {"policies": ["Some policies are not allowed for this department."]}
-    #         )
-
-    allowed_policy_ids = set(
-    Policy.objects.filter(
-        policy_roles__role__in=allowed_roles
-    ).values_list("id", flat=True)
-    )
-
-    invalid_policies = direct_policy_ids - allowed_policy_ids
-
-    if invalid_policies:
-        raise ValidationError(
-            {"policies": ["Some policies are not allowed for this department."]}
-        )
-
-
-    # --------------------------------------------------
-    # 7️⃣ Merge Final Policies (Flattened Model)
-    # --------------------------------------------------
-    final_policy_ids = role_policy_ids | direct_policy_ids
-
-    if not final_policy_ids:
-        raise ValidationError(
-            {"non_field_errors": ["User must have at least one policy."]}
-        )
-
-    final_policies = Policy.objects.filter(id__in=final_policy_ids)
-
-    # --------------------------------------------------
-    # 8️⃣ Create User
+    # 7️⃣ Create user
     # --------------------------------------------------
     user = User.objects.create_user(
         username=username,
@@ -172,59 +128,52 @@ def create_user(
     )
 
     # --------------------------------------------------
-    # 9️⃣ Persist Flattened Policies
+    # 8️⃣ Store UserPermission — source of truth
+    #    All expanded from roles → source="role"
     # --------------------------------------------------
-    UserPolicy.objects.bulk_create(
-        [
-            UserPolicy(user=user, policy=policy, assigned_by=actor)
-            for policy in final_policies
-        ]
-    )
+    UserPermission.objects.bulk_create([
+        UserPermission(
+            user=user,
+            permission=permission,
+            assigned_by=actor,
+            source=UserPermission.SOURCE_ROLE,
+        )
+        for permission in permissions
+    ])
 
     # --------------------------------------------------
-    # 🔟 Persist Roles (Reporting Only)
+    # 9️⃣ Store UserRole — for UI display and reporting only
     # --------------------------------------------------
-    if roles:
-        UserRole.objects.bulk_create(
-            [
-                UserRole(user=user, role=role, assigned_by=actor)
-                for role in roles
-            ]
-        )
+    UserRole.objects.bulk_create([
+        UserRole(user=user, role=role, assigned_by=actor)
+        for role in roles
+    ])
 
     return user
 
 
 
 
-# 🔥 What This Version Fixes
-
-# ✔ Superuser full bypass
-# ✔ Admin department restriction
-# ✔ Scope enforcement for roles
-# ✔ Scope enforcement for policies
-# ✔ Flattened policy storage
-# ✔ Role storage for reporting
-# ✔ Reduced redundant queries
-# ✔ Atomic transaction
-# ✔ Bulk insert for performance
-# ✔ Explicit missing role/policy detection
 
 
 
 
 
+
+# # apps/identity/services/user/create.py
 
 # from django.db import transaction
 # from django.contrib.auth import get_user_model
 # from rest_framework.exceptions import ValidationError
 
 # from apps.department.models import Department
-# from apps.access.models import Policy,UserPolicy
-# from apps.access.services.role_services.role_validation import validate_role_assignment
-# from apps.access.services.role_services.role_assignment import assign_roles_to_user
+# from apps.access.models import Policy, UserPolicy, UserRole, Role
+# from apps.common.constants import RoleCodes, HIDDEN_FROM_IAM_ADMIN
+# from apps.common.helpers.authz.role_helpers import has_role
+# from uuid import UUID
 
 # User = get_user_model()
+
 
 # @transaction.atomic
 # def create_user(
@@ -232,97 +181,132 @@ def create_user(
 #     actor,
 #     username: str,
 #     password: str,
-#     department_code: str,
-#     role_codes: list[str] | None = None,
-#     policy_codes: list[str] | None = None,
 #     email: str | None = None,
+#     department_id: UUID | None = None,
+#     role_ids: list[UUID] | None = None,
+#     extra_policy_ids: list[UUID] | None = None,
 # ):
-#     role_codes = role_codes or []
-#     policy_codes = policy_codes or []
+#     role_ids = role_ids or []
+#     extra_policy_ids = extra_policy_ids or []
 
-#     if not role_codes and not policy_codes:
-#         raise ValidationError(
-#             {"non_field_errors": ["At least one role or policy is required."]}
-#         )
+#     # --------------------------------------------------
+#     # 1️⃣ Identify actor type
+#     # --------------------------------------------------
+#     is_superuser = actor.is_superuser
+#     is_platform_admin = has_role(actor, RoleCodes.PLATFORM_ADMIN)
+#     is_dept_admin = has_role(actor, RoleCodes.DEPT_ADMIN)
 
+#     if not is_superuser and not is_platform_admin and not is_dept_admin:
+#         raise ValidationError("You do not have permission to create users.")
+
+#     # --------------------------------------------------
+#     # 2️⃣ Username uniqueness
+#     # --------------------------------------------------
 #     if User.objects.filter(username=username).exists():
 #         raise ValidationError({"username": ["Username already exists."]})
 
-#     # 1️⃣ Resolve department
-#     try:
-#         department = Department.objects.get(code=department_code)
-#     except Department.DoesNotExist:
-#         raise ValidationError({"department": ["Invalid department."]})
+#     # --------------------------------------------------
+#     # 3️⃣ Resolve department
+#     #    Superuser / Platform Admin → caller provides department (required)
+#     #    Dept Admin                 → auto-set to actor's department
+#     # --------------------------------------------------
+#     if is_superuser or is_platform_admin:
+#         if not department_id:
+#             raise ValidationError({"department": ["Department is required."]})
+#         try:
+#             department = Department.objects.get(id=department_id)
+#         except Department.DoesNotExist:
+#             raise ValidationError({"department": ["Invalid department."]})
+#     else:
+#         department = actor.department
 
-#     # 2️⃣ Validate roles allowed by department
-#     allowed_role_codes = set(
-#         department.allowed_roles.values_list("code", flat=True)
+#     # --------------------------------------------------
+#     # 4️⃣ Resolve roles by UUID
+#     # --------------------------------------------------
+#     if not role_ids:
+#         raise ValidationError({"roles": ["At least one role is required."]})
+
+#     roles = Role.objects.filter(id__in=role_ids)
+#     found_role_ids = set(roles.values_list("id", flat=True))
+#     missing_roles = set(role_ids) - found_role_ids
+
+#     if missing_roles:
+#         raise ValidationError({"roles": ["Some roles are invalid."]})
+
+#     # --------------------------------------------------
+#     # 5️⃣ Validate role scope per actor
+#     #
+#     #    Superuser      → any role allowed
+#     #    Platform Admin → any role except platform.admin
+#     #    Dept Admin     → only non-hidden, only roles for dept's allowed systems
+#     # --------------------------------------------------
+#     if is_platform_admin:
+#         for role in roles:
+#             if role.code == RoleCodes.PLATFORM_ADMIN:
+#                 raise ValidationError(
+#                     {"roles": ["You cannot assign the platform.admin role."]}
+#                 )
+
+#     elif is_dept_admin:
+#         allowed_systems = set(department.allowed_systems)
+#         for role in roles:
+#             if role.code in HIDDEN_FROM_IAM_ADMIN:
+#                 raise ValidationError(
+#                     {"roles": [f"Role '{role.code}' cannot be assigned by department admin."]}
+#                 )
+#             system = role.code.split(".")[0]
+#             if system not in allowed_systems:
+#                 raise ValidationError(
+#                     {"roles": [f"Role '{role.code}' is not allowed for this department."]}
+#                 )
+
+#     # --------------------------------------------------
+#     # 6️⃣ Expand roles → policies (always included, cannot be removed)
+#     # --------------------------------------------------
+#     role_policy_ids = set(
+#         Policy.objects.filter(
+#             policy_roles__role__in=roles
+#         ).values_list("id", flat=True)
 #     )
 
-#     invalid_roles = set(role_codes) - allowed_role_codes
+#     # --------------------------------------------------
+#     # 7️⃣ Resolve extra policies
+#     #    Superuser / Platform Admin → allowed, added on top of role policies
+#     #    Dept Admin                 → not allowed
+#     # --------------------------------------------------
+#     extra_policy_id_set = set()
 
-#     if invalid_roles:
-#         raise ValidationError(
-#             {
-#                 "roles": [
-#                     f"Role(s) {sorted(invalid_roles)} "
-#                     f"are not allowed for department '{department.code}'."
-#                 ]
-#             }
-#         )
-
-#     # 3️⃣ Expand role → policies
-#     role_policy_codes = set(
-#         Policy.objects
-#         .filter(policy_roles__role__code__in=role_codes)
-#         .values_list("code", flat=True)
-#     )
-
-#     # 4️⃣ Validate direct policies
-#     direct_policy_codes = set()
-
-#     if policy_codes:
-#         existing_policies = set(
-#             Policy.objects
-#             .filter(code__in=policy_codes)
-#             .values_list("code", flat=True)
-#         )
-
-#         missing = set(policy_codes) - existing_policies
-#         if missing:
+#     if extra_policy_ids:
+#         if is_dept_admin:
 #             raise ValidationError(
-#                 {"policies": [f"Invalid policies: {sorted(missing)}."]}
+#                 {"extra_policies": ["Department admin cannot assign extra policies."]}
 #             )
 
-#         allowed_policies = set(
-#             Policy.objects
-#             .filter(policy_roles__role__in=department.allowed_roles.all())
-#             .values_list("code", flat=True)
-#         )
+#         extra_policies = Policy.objects.filter(id__in=extra_policy_ids)
+#         found_extra_ids = set(extra_policies.values_list("id", flat=True))
+#         missing_extra = set(extra_policy_ids) - found_extra_ids
 
-#         invalid_policies = set(policy_codes) - allowed_policies
+#         if missing_extra:
+#             raise ValidationError({"extra_policies": ["Some policies are invalid."]})
 
-#         if invalid_policies:
-#             raise ValidationError(
-#                 {
-#                     "policies": [
-#                         f"Policy(s) {sorted(invalid_policies)} "
-#                         f"are not allowed for department '{department.code}'."
-#                     ]
-#                 }
-#             )
+#         extra_policy_id_set = found_extra_ids
 
-#         direct_policy_codes = existing_policies
+#     # --------------------------------------------------
+#     # 8️⃣ Merge final policies
+#     #    Role policies (protected baseline) + extra policies (optional additions)
+#     # --------------------------------------------------
+#     final_policy_ids = role_policy_ids | extra_policy_id_set
 
-#     # 5️⃣ Merge final policy set
-#     final_policy_codes = role_policy_codes | direct_policy_codes
-
-#     if not final_policy_codes:
+#     if not final_policy_ids:
 #         raise ValidationError(
-#             {"non_field_errors": ["User must have at least one policy."]}
+#             {"roles": ["Selected roles have no policies assigned. Contact your administrator."]}
 #         )
 
-#     # 6️⃣ Create user
+#     final_policies = Policy.objects.filter(id__in=final_policy_ids)
+
+#     # --------------------------------------------------
+#     # 9️⃣ Create user
+#     # --------------------------------------------------
 #     user = User.objects.create_user(
 #         username=username,
 #         password=password,
@@ -331,15 +315,213 @@ def create_user(
 #         is_active=True,
 #     )
 
-#     # 7️⃣ Persist policies
-#     policies = Policy.objects.filter(code__in=final_policy_codes)
+#     # --------------------------------------------------
+#     # 🔟 Store UserPolicy — source of truth for permissions
+#     # --------------------------------------------------
+#     UserPolicy.objects.bulk_create([
+#         UserPolicy(user=user, policy=policy, assigned_by=actor)
+#         for policy in final_policies
+#     ])
 
-#     UserPolicy.objects.bulk_create(
-#         [
-#             UserPolicy(user=user, policy=policy)
-#             for policy in policies
-#         ]
-#     )
+#     # --------------------------------------------------
+#     # 1️⃣1️⃣ Store UserRole — for visibility and management rules
+#     # --------------------------------------------------
+#     UserRole.objects.bulk_create([
+#         UserRole(user=user, role=role, assigned_by=actor)
+#         for role in roles
+#     ])
 
 #     return user
 
+
+# apps/identity/services/user/create.py
+
+# from django.db import transaction
+# from django.contrib.auth import get_user_model
+# from rest_framework.exceptions import ValidationError
+
+# from apps.department.models import Department
+# from apps.access.models import Policy, UserPolicy, UserRole, Role
+# from apps.common.constants import RoleCodes, HIDDEN_FROM_IAM_ADMIN
+# from apps.common.helpers.authz.role_helpers import has_role
+# from uuid import UUID
+
+# User = get_user_model()
+
+
+# @transaction.atomic
+# def create_user(
+#     *,
+#     actor,
+#     username: str,
+#     password: str,
+#     email: str | None = None,
+#     department_id: UUID | None = None,
+#     role_ids: list[UUID] | None = None,
+#     extra_policy_ids: list[UUID] | None = None,
+# ):
+#     role_ids = role_ids or []
+#     extra_policy_ids = extra_policy_ids or []
+
+#     # --------------------------------------------------
+#     # 1️⃣ Identify actor type
+#     # --------------------------------------------------
+#     is_superuser = actor.is_superuser
+#     is_platform_admin = has_role(actor, RoleCodes.PLATFORM_ADMIN)
+#     is_dept_admin = has_role(actor, RoleCodes.DEPT_ADMIN)
+
+#     if not is_superuser and not is_platform_admin and not is_dept_admin:
+#         raise ValidationError("You do not have permission to create users.")
+
+#     # --------------------------------------------------
+#     # 2️⃣ Username uniqueness
+#     # --------------------------------------------------
+#     if User.objects.filter(username=username).exists():
+#         raise ValidationError({"username": ["Username already exists."]})
+
+#     # --------------------------------------------------
+#     # 3️⃣ Resolve department
+#     #    Superuser / Platform Admin → caller provides department (required)
+#     #    Dept Admin                 → auto-set to actor's department
+#     # --------------------------------------------------
+#     if is_superuser or is_platform_admin:
+#         if not department_id:
+#             raise ValidationError({"department": ["Department is required."]})
+#         try:
+#             department = Department.objects.get(id=department_id)
+#         except Department.DoesNotExist:
+#             raise ValidationError({"department": ["Invalid department."]})
+#     else:
+#         department = actor.department
+
+#     # --------------------------------------------------
+#     # 4️⃣ Resolve roles by UUID
+#     # --------------------------------------------------
+#     if not role_ids:
+#         raise ValidationError({"roles": ["At least one role is required."]})
+
+#     roles = Role.objects.filter(id__in=role_ids)
+#     found_role_ids = set(roles.values_list("id", flat=True))
+#     missing_roles = set(role_ids) - found_role_ids
+
+#     if missing_roles:
+#         raise ValidationError({"roles": ["Some roles are invalid."]})
+
+#     # --------------------------------------------------
+#     # 5️⃣ Validate role scope per actor
+#     #
+#     #    Superuser      → any role allowed
+#     #    Platform Admin → no platform.admin + dept allowed_systems
+#     #    Dept Admin     → no hidden roles + dept allowed_systems
+#     # --------------------------------------------------
+#     allowed_systems = set(department.allowed_systems)
+
+#     if is_platform_admin:
+#         for role in roles:
+#             if role.code == RoleCodes.PLATFORM_ADMIN:
+#                 raise ValidationError(
+#                     {"roles": ["You cannot assign the platform.admin role."]}
+#                 )
+#             system = role.code.split(".")[0]
+#             if system not in allowed_systems:
+#                 raise ValidationError(
+#                     {"roles": [f"Role '{role.code}' is not allowed for this department."]}
+#                 )
+
+#     elif is_dept_admin:
+#         for role in roles:
+#             if role.code in HIDDEN_FROM_IAM_ADMIN:
+#                 raise ValidationError(
+#                     {"roles": [f"Role '{role.code}' cannot be assigned by department admin."]}
+#                 )
+#             system = role.code.split(".")[0]
+#             if system not in allowed_systems:
+#                 raise ValidationError(
+#                     {"roles": [f"Role '{role.code}' is not allowed for this department."]}
+#                 )
+
+#     # --------------------------------------------------
+#     # 6️⃣ Expand roles → policies (protected baseline)
+#     # --------------------------------------------------
+#     role_policies = Policy.objects.filter(
+#         policy_roles__role__in=roles
+#     )
+#     role_policy_ids = set(role_policies.values_list("id", flat=True))
+
+#     # --------------------------------------------------
+#     # 7️⃣ Resolve extra policies
+#     #    Superuser      → any policy allowed
+#     #    Platform Admin → allowed, scoped to department allowed_systems
+#     #    Dept Admin     → blocked entirely
+#     # --------------------------------------------------
+#     extra_policy_id_set = set()
+
+#     if extra_policy_ids:
+#         if is_dept_admin:
+#             raise ValidationError(
+#                 {"extra_policies": ["Department admin cannot assign extra policies."]}
+#             )
+
+#         extra_policies = Policy.objects.filter(id__in=extra_policy_ids)
+#         found_extra_ids = set(extra_policies.values_list("id", flat=True))
+#         missing_extra = set(extra_policy_ids) - found_extra_ids
+
+#         if missing_extra:
+#             raise ValidationError({"extra_policies": ["Some policies are invalid."]})
+
+#         if is_platform_admin:
+#             for policy in extra_policies:
+#                 system = policy.code.split(".")[0]
+#                 if system not in allowed_systems:
+#                     raise ValidationError(
+#                         {"extra_policies": [f"Policy '{policy.code}' is not allowed for this department."]}
+#                     )
+
+#         extra_policy_id_set = found_extra_ids
+
+#     # --------------------------------------------------
+#     # 8️⃣ Merge final policies
+#     # --------------------------------------------------
+#     final_policy_ids = role_policy_ids | extra_policy_id_set
+
+#     if not final_policy_ids:
+#         raise ValidationError(
+#             {"roles": ["Selected roles have no policies assigned. Contact your administrator."]}
+#         )
+
+#     # --------------------------------------------------
+#     # 9️⃣ Create user
+#     # --------------------------------------------------
+#     user = User.objects.create_user(
+#         username=username,
+#         password=password,
+#         email=email or "",
+#         department=department,
+#         is_active=True,
+#     )
+
+#     # --------------------------------------------------
+#     # 🔟 Store UserPolicy — source of truth for permissions
+#     #    Role-expanded policies → source="role"
+#     #    Manually added extras  → source="extra"
+#     # --------------------------------------------------
+#     role_policy_objects = Policy.objects.filter(id__in=role_policy_ids)
+#     extra_policy_objects = Policy.objects.filter(id__in=extra_policy_id_set)
+
+#     UserPolicy.objects.bulk_create([
+#         UserPolicy(user=user, policy=policy, assigned_by=actor, source=UserPolicy.SOURCE_ROLE)
+#         for policy in role_policy_objects
+#     ] + [
+#         UserPolicy(user=user, policy=policy, assigned_by=actor, source=UserPolicy.SOURCE_EXTRA)
+#         for policy in extra_policy_objects
+#     ])
+
+#     # --------------------------------------------------
+#     # 1️⃣1️⃣ Store UserRole — for visibility and management rules
+#     # --------------------------------------------------
+#     UserRole.objects.bulk_create([
+#         UserRole(user=user, role=role, assigned_by=actor)
+#         for role in roles
+#     ])
+
+#     return user

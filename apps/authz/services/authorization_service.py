@@ -224,7 +224,7 @@ class AuthorizationService:
         Load effective permission codes.
         1. Check per-request cache (user object attribute)
         2. Check Redis TTL cache (30s)
-        3. Fall back to DB query
+        3. Fall back to DB query — reads directly from UserPermission (source of truth)
         """
 
         # Per-request cache (within same request lifecycle)
@@ -239,33 +239,18 @@ class AuthorizationService:
             user._cached_permission_codes = cached
             return cached
 
-        # DB query
+        # DB query — 1 hop: UserPermission → Permission
         if user.is_superuser:
             permissions = set(
                 Permission.objects.values_list("code", flat=True)
             )
         else:
-            # From UserRole → Role → RolePolicy → Policy → PolicyPermission → Permission
-            role_permissions = set(
+            permissions = set(
                 Permission.objects
-                .filter(
-                    permission_policies__policy__policy_roles__role__role_users__user=user
-                )
+                .filter(iam_user_permissions__user=user)
                 .values_list("code", flat=True)
                 .distinct()
             )
-
-            # From UserPolicy → Policy → PolicyPermission → Permission
-            direct_permissions = set(
-                Permission.objects
-                .filter(
-                    permission_policies__policy__policy_users__user=user
-                )
-                .values_list("code", flat=True)
-                .distinct()
-            )
-
-            permissions = role_permissions | direct_permissions
 
         # Store in both caches
         cache.set(cache_key, permissions, timeout=PERMISSION_CACHE_TTL)

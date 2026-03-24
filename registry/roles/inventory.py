@@ -13,8 +13,9 @@ _ROLES = [
         code="inventory.admin",
         name="Inventory – Admin",
         policies=(
-            "inventory.az.full",
-            "inventory.device.read_only",
+            # "inventory.az.full",
+            # "inventory.device.read_only",
+            "inventory.full",
         ),
     ),
 ]
