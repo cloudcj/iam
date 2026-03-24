@@ -3,7 +3,7 @@ from .schema import Role
 _ROLES = [
     Role(
         code="tropos.viewer",
-        name="tropos – Viewer",
+        name="Tropos Viewer",
         policies=(
             "tropos.az.read_only",
             "tropos.device.read_only",
@@ -11,7 +11,7 @@ _ROLES = [
     ),
     Role(
         code="tropos.admin",
-        name="tropos – Admin",
+        name="Tropos Admin",
         policies=(
             # "tropos.az.full",
             # "tropos.device.read_only",
