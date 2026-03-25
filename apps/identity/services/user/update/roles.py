@@ -80,7 +80,7 @@ from django.db import transaction
 from django.contrib.auth.models import AbstractBaseUser
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.common.constants import RoleCodes, HIDDEN_FROM_IAM_ADMIN
+from apps.common.constants import RoleCodes, HIDDEN_FROM_DEPARTMENT_ADMIN
 from apps.common.helpers.authz.role_helpers import has_role
 from apps.access.models import Role, UserRole
 from apps.access.services.roles.role_validation import validate_role_assignment
@@ -108,11 +108,11 @@ def update_user_roles(
     if has_role(actor, RoleCodes.IAM_ADMIN) and not actor.is_superuser:
 
         # ❌ cannot modify admin users
-        if target.user_roles.filter(role__code__in=HIDDEN_FROM_IAM_ADMIN).exists():
+        if target.user_roles.filter(role__code__in=HIDDEN_FROM_DEPARTMENT_ADMIN).exists():
             raise PermissionDenied("Cannot modify admin users")
 
         # ❌ cannot assign admin/global roles
-        if any(code in HIDDEN_FROM_IAM_ADMIN for code in role_codes):
+        if any(code in HIDDEN_FROM_DEPARTMENT_ADMIN for code in role_codes):
             raise PermissionDenied("Cannot assign admin roles")
 
         # ❌ must be same department
@@ -133,5 +133,4 @@ def update_user_roles(
     UserRole.objects.bulk_create(
         [UserRole(user=target, role=role) for role in roles]
     )
-
     return True

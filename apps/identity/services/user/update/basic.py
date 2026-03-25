@@ -25,7 +25,7 @@ from django.db import transaction
 from django.contrib.auth.models import AbstractBaseUser
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.common.constants import RoleCodes, HIDDEN_FROM_IAM_ADMIN
+from apps.common.constants import RoleCodes, HIDDEN_FROM_DEPARTMENT_ADMIN
 from apps.common.helpers.authz.role_helpers import has_role
 from apps.identity.models import User
 
@@ -49,7 +49,7 @@ def update_user_basic(
     if has_role(actor, RoleCodes.IAM_ADMIN) and not actor.is_superuser:
 
         # ❌ cannot touch admin users
-        if target.user_roles.filter(role__code__in=HIDDEN_FROM_IAM_ADMIN).exists():
+        if target.user_roles.filter(role__code__in=HIDDEN_FROM_DEPARTMENT_ADMIN).exists():
             raise PermissionDenied("Cannot modify admin users")
 
         # ❌ must be same department

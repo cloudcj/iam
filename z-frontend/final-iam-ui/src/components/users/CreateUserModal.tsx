@@ -14,6 +14,11 @@ import {
 import type { CreateUserPayload, Policy } from "../../types";
 import PolicyCard from "./PolicyCard";
 
+const PLATFORM_ROLES = new Set([
+  "platform.admin",
+  "platform.viewer",
+])
+
 const HIDDEN_ROLES = new Set([
   "platform.admin",
   "platform.viewer",
@@ -67,8 +72,13 @@ export default function CreateUserModal({ opened, onClose }: Props) {
 
   const selectedDeptId = isDeptAdmin ? (myDept?.id ?? "") : form.values.department;
   const selectedDept = departments?.find((d) => d.id === selectedDeptId);
-  const allowedSystems = selectedDept?.allowed_systems ?? [];
+//   const allowedSystems = selectedDept?.allowed_systems ?? [];
   const hasDepartment = isDeptAdmin ? !!myDept : !!form.values.department;
+  const allSystems = [...new Set(roles?.map((r) => r.system).filter((s) => !['iam', 'dept', 'platform'].includes(s)) ?? [])]
+  const isPlatformManagementRole = !!managementRole && PLATFORM_ROLES.has(managementRole)
+  const allowedSystems = hasDepartment
+    ? (isPlatformManagementRole ? allSystems : (selectedDept?.allowed_systems ?? []))
+    : []
 
   const managementRoleOptions = useMemo(() => {
     if (isDeptAdmin) return [];
@@ -244,7 +254,7 @@ export default function CreateUserModal({ opened, onClose }: Props) {
             <>
               <Divider label="Management Role" labelPosition="left" />
               <Select
-                placeholder={hasDepartment ? "None — system roles only" : "Select a department first"}
+                placeholder={hasDepartment ? "--" : "Select a department first"}
                 data={managementRoleOptions}
                 value={managementRole}
                 onChange={(val) => {

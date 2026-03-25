@@ -10,7 +10,7 @@ _POLICIES = [
     Policy(
         code="ghidora.full",
         name="Ghidora – Full Access",
-        system="iam",
+        system="ghidora",
         resource="*",
         permissions=all_permissions_for_service(GHIDORA_SERVICE),
         visible_in_ui=False,

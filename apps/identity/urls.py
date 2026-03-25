@@ -30,10 +30,11 @@ from django.urls import path
 from .views.user import (
     CreateUserView,
     ListUsersView,
+    UpdateUserFullView,
     # UpdateUserBasicView,
     # UpdateUserRolesView,
     # UpdateUserDepartmentView,
-    # DeleteUserView,
+    DeleteUserView,
 )
 from apps.identity.views.me.me import MeView
 from apps.identity.views.me.me_systems import MeSystemsView
@@ -41,10 +42,11 @@ from apps.identity.views.me.me_systems import MeSystemsView
 urlpatterns = [
     path("users/", ListUsersView.as_view(), name="list-users"),
     path("users/create/", CreateUserView.as_view(), name="create-user"),
+    path("users/<uuid:user_id>/update/", UpdateUserFullView.as_view(), name="update-user"),
     # path("users/<uuid:user_id>/basic/", UpdateUserBasicView.as_view()),
     # path("users/<uuid:user_id>/roles/", UpdateUserRolesView.as_view()),
     # path("users/<uuid:user_id>/department/", UpdateUserDepartmentView.as_view()),
-    # path("users/<uuid:user_id>/delete/", DeleteUserView.as_view()),
+    path("users/<uuid:user_id>/delete/", DeleteUserView.as_view()),
 ]
 
 me_urlpatterns = [

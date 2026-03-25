@@ -1,6 +1,8 @@
 export interface User {
   id: string
   username: string
+  first_name: string
+  last_name: string
   email: string
   is_active: boolean
   department: {
@@ -8,8 +10,9 @@ export interface User {
     code: string
     name: string
   } | null
-  roles: string[]  // array of role codes
+  roles: string[]
 }
+
 
 export interface CreateUserPayload {
   username: string

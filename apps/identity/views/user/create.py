@@ -114,6 +114,8 @@ class CreateUserView(APIView):
             actor=request.user,
             username=data["username"],
             password=data["password"],
+            first_name=data.get("first_name", ""),
+            last_name=data.get("last_name", ""),
             email=data.get("email"),
             department_id=data.get("department"),
             role_ids=data.get("roles", []),

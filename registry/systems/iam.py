@@ -48,6 +48,11 @@ IAM_SERVICE = make_system(
     name="iam",
     label="IAM",
     resources={
+        "dashboard": ("Dashboard", [
+            "read",
+            "update",
+            "delete"
+        ]),
         "user": ("Users", [
             "read",
             "create",

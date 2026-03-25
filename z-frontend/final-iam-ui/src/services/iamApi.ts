@@ -86,9 +86,14 @@ export const iamApi = createApi({
       invalidatesTags: ['User'],
     }),
     updateUser: builder.mutation<User, { id: string; body: Partial<User> }>({
-      query: ({ id, body }) => ({ url: `/identity/users/${id}/`, method: 'PATCH', body }),
+      query: ({ id, body }) => ({ url: `/identity/users/${id}/update/`, method: 'PATCH', body }),
       invalidatesTags: ['User'],
     }),
+    deleteUser: builder.mutation<void, string>({
+      query: (id) => ({ url: `/identity/users/${id}/delete/`, method: 'DELETE' }),
+      invalidatesTags: ['User'],
+    }),
+
 
     // Roles
     getRoles: builder.query<Role[], void>({
@@ -137,4 +142,5 @@ export const {
   useGetDepartmentsQuery,
   useCreateDepartmentMutation,
   useUpdateDepartmentMutation,
+  useDeleteUserMutation,
 } = iamApi

@@ -64,3 +64,31 @@
 #             {"status": "user deactivated"},
 #             status=status.HTTP_204_NO_CONTENT,
 #         )
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError, PermissionDenied
+
+from apps.identity.models import User
+from apps.identity.services.user.delete import delete_user
+from apps.authz.permissions import HasPermission
+from apps.common.constants.permission_codes import IAMPermissions
+
+
+class DeleteUserView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission]
+    required_permission = IAMPermissions.USER_DELETE
+
+    def delete(self, request, user_id):
+        target = get_object_or_404(User, id=user_id)
+
+        try:
+            delete_user(actor=request.user, target=target)
+        except PermissionDenied as e:
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": "User deactivated."}, status=status.HTTP_200_OK)

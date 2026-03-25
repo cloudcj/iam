@@ -249,13 +249,13 @@ def create_user(
                     {"roles": ["You cannot assign the platform.admin role."]}
                 )
             # Skip system check for management roles
-            if role.code in MANAGEMENT_ROLES:
-                continue
-            system = role.code.split(".")[0]
-            if system not in allowed_systems:
-                raise ValidationError(
-                    {"roles": [f"Role '{role.code}' is not allowed for this department."]}
-                )
+            # if role.code in MANAGEMENT_ROLES:
+            #     continue
+            # system = role.code.split(".")[0]
+            # if system not in allowed_systems:
+            #     raise ValidationError(
+            #         {"roles": [f"Role '{role.code}' is not allowed for this department."]}
+            #     )
 
     elif is_dept_admin:
         for role in roles:

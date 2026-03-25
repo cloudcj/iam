@@ -24,6 +24,41 @@ _POLICIES = [
     ),
 
     # --------------------------------------------------
+    # Region resource
+    # --------------------------------------------------
+    Policy(
+        code="tropos.region.read_only",
+        name="Region – Read Only",
+        system="tropos",
+        resource="region",
+        permissions=("tropos.region.read",),
+    ),
+    Policy(
+        code="tropos.region.read_update",
+        name="Region – Read & Update",
+        system="tropos",
+        resource="region",
+        permissions=(
+            "tropos.region.read",
+            "tropos.region.create",
+            "tropos.region.update",
+        ),
+    ),
+    Policy(
+        code="tropos.region.full",
+        name="Region – Full Access",
+        system="tropos",
+        resource="region",
+        permissions=(
+            "tropos.region.read",
+            "tropos.region.create",
+            "tropos.region.update",
+            "tropos.region.delete",
+        ),
+    ),
+    
+
+    # --------------------------------------------------
     # AZ resource
     # --------------------------------------------------
     Policy(
@@ -56,6 +91,41 @@ _POLICIES = [
             "tropos.az.delete",
         ),
     ),
+
+    # --------------------------------------------------
+    # Building resource
+    # --------------------------------------------------
+    Policy(
+        code="tropos.building.read_only",
+        name="Building – Read Only",
+        system="tropos",
+        resource="building",
+        permissions=("tropos.building.read",),
+    ),
+    Policy(
+        code="tropos.building.read_update",
+        name="Building – Read & Update",
+        system="tropos",
+        resource="building",
+        permissions=(
+            "tropos.building.read",
+            "tropos.building.create",
+            "tropos.building.update",
+        ),
+    ),
+    Policy(
+        code="tropos.building.full",
+        name="Building – Full Access",
+        system="tropos",
+        resource="building",
+        permissions=(
+            "tropos.building.read",
+            "tropos.building.create",
+            "tropos.building.update",
+            "tropos.building.delete",
+        ),
+    ),
+    
 
     # --------------------------------------------------
     # Device resource
