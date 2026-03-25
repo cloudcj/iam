@@ -2,28 +2,40 @@
 
 ## Overview
 
-User creation rules are enforced based on the actor's (creator's) role. Each role has a defined scope of what they can set when creating a user.
+User creation rules are enforced based on the actor's (creator's) role.
+Permissions are the source of truth — roles and policies are UI presets only.
+
+At creation time:
+```
+Role selected → Role → Policy → Permission → UserPermission saved (source="role")
+```
+
+No direct permission selection at creation. That belongs to post-creation update.
 
 ---
 
 ## Superuser
 
 ### Who can create
-- Anyone (all users, all departments)
+- Any user in any department
 
 ### Department assignment
-- Can assign any department including global (no department)
+- Any department — required field
+- Use GLOBAL for platform-level users
 
-### Role & Policy assignment
-- Can assign any role including `platform.admin`, `platform.viewer`, `dept.admin`
-- Can assign any policy regardless of system or department scope
+### Role assignment
+- Any role including `platform.admin`, `platform.viewer`, `dept.admin`, `dept.viewer`
+- No scope restrictions
+
+### Permission assignment
+- Automatically expanded from selected roles
+- Cannot uncheck permissions at creation
+- Post-creation: can add/remove any permission with no scope limit
 
 ### Additional rules
 - Only superuser can create a `platform.admin` account
-- Only superuser can assign the `platform.admin` and `platform.viewer` roles
-- Can change a user's department at any time after creation
-- Can deactivate or delete any user
-- Cannot be created via IAM UI — must be set directly in the database (`is_superuser=True`)
+- Cannot be created via IAM UI — database/seeder only (`is_superuser=True`)
+- Bypasses all permission checks at runtime
 
 ---
 
@@ -33,17 +45,20 @@ User creation rules are enforced based on the actor's (creator's) role. Each rol
 - Any user in any department
 
 ### Department assignment
-- Can assign any department including global (no department)
+- Any department — required field
 
-### Role & Policy assignment
-- Can assign any role **except** `platform.admin`
-- Can assign `dept.admin`, `dept.viewer`, and all system-specific roles
-- Can assign any policy regardless of system or department scope
+### Role assignment
+- Any role **except** `platform.admin`
+- Roles must belong to the department's `allowed_systems`
+- Can assign `dept.admin`, `dept.viewer`, and system-specific roles within dept scope
+
+### Permission assignment
+- Automatically expanded from selected roles
+- Cannot uncheck permissions at creation
+- Post-creation: can add/remove any permission within department scope (including role-based)
 
 ### Additional rules
 - Cannot create another `platform.admin` — superuser only
-- Can change a user's department at any time after creation
-- Can deactivate or delete any user except superuser accounts
 - Can see all users across all departments
 
 ---
@@ -54,49 +69,60 @@ User creation rules are enforced based on the actor's (creator's) role. Each rol
 - Users within their own department only
 
 ### Department assignment
-- Department is automatically set to the actor's department
-- Cannot assign a different department — locked to own department
-- Cannot change a user's department after creation
+- Automatically set to actor's own department
+- Input is ignored — cannot assign a different department
 
-### Role & Policy assignment
-- Can only assign roles and policies scoped to their department's systems
+### Role assignment
 - Cannot assign hidden roles: `platform.admin`, `platform.viewer`, `dept.admin`, `dept.viewer`
-- Cannot assign policies outside the department's allowed systems
+- Can only assign roles where `role.code.split(".")[0]` is in `department.allowed_systems`
+
+### Permission assignment
+- Automatically expanded from selected roles
+- Cannot uncheck permissions at creation
+- Post-creation: role change only — no direct permission control
 
 ### Additional rules
 - Cannot see users outside their own department
-- Cannot deactivate or delete users with hidden roles
-- Cannot modify their own account
-- Cannot modify accounts of users with higher-tier roles
+- Cannot see users with hidden roles even in own department
+- Cannot move users between departments
 
 ---
 
-## Role & Policy Assignment Summary
+## Role Assignment Authority Summary
 
-| Actor | Can assign `platform.admin` | Can assign `dept.admin` | Can assign system roles | Can assign any policy |
-|---|---|---|---|---|
-| Superuser | Yes | Yes | Yes | Yes |
-| Platform Admin | No | Yes | Yes | Yes |
-| Dept Admin | No | No | Own dept only | Own dept only |
+| Role to assign | Superuser | Platform Admin | Dept Admin |
+|---|---|---|---|
+| `platform.admin` | ✅ | ❌ | ❌ |
+| `platform.viewer` | ✅ | ❌ | ❌ |
+| `dept.admin` | ✅ | ✅ | ❌ |
+| `dept.viewer` | ✅ | ✅ | ❌ |
+| `{system}.admin/viewer` | ✅ | ✅ dept scoped | ✅ dept scoped |
 
 ---
 
 ## Department Assignment Summary
 
-| Actor | Can assign any dept | Can assign global | Auto-sets dept |
+| Actor | Can assign any dept | Auto-sets dept | Dept required |
 |---|---|---|---|
-| Superuser | Yes | Yes | No |
-| Platform Admin | Yes | Yes | No |
-| Dept Admin | No | No | Yes (own dept) |
+| Superuser | ✅ | ❌ | ✅ |
+| Platform Admin | ✅ | ❌ | ✅ |
+| Dept Admin | ❌ | ✅ (own dept) | ❌ (ignored) |
 
 ---
 
-## Multiple Roles & Policies
+## Post-Creation Permission Control
 
-- A user can have **one role** as their primary role (assigned via `UserRole`)
-- A user can have **additional direct policy assignments** via `UserPolicy` for temporary or exception access
-- Final permissions = policies from role + direct policy assignments
-- Direct policy assignments are useful for temporary access without changing the user's primary role
+| Actor | Role update | Add/remove permissions | Move dept |
+|---|---|---|---|
+| Superuser | Any | Any, no scope limit | ✅ |
+| Platform Admin | Dept scoped | Dept scoped (including role-based) | ✅ |
+| Dept Admin | Dept scoped | ❌ not allowed | ❌ |
+
+### How post-creation permission update works (UI)
+1. View current permissions grouped by system/resource
+2. Check/uncheck individual permissions
+3. Use policy presets as shortcuts to bulk-check a permission group
+4. API receives only permission UUIDs — policy is never saved
 
 ---
 
@@ -106,7 +132,7 @@ User creation rules are enforced based on the actor's (creator's) role. Each rol
 |---|---|
 | Superuser | Any user |
 | Platform Admin | Any user except superusers |
-| Dept Admin | Only users in their department (non-hidden roles only) |
+| Dept Admin | Only non-hidden-role users in their department |
 
 ---
 
@@ -136,19 +162,16 @@ User creation rules are enforced based on the actor's (creator's) role. Each rol
 | Purpose | Break-glass, emergency access | Day-to-day platform management |
 | Who gets it | 1–2 accounts max | Developers, platform managers |
 
-### Important note on new systems
-When a new system is added to the platform:
-- **Superuser** automatically has access — bypasses all checks
-- **Platform Admin** loses access to the new system until their role's policies are updated to include it
-
-This is why superuser is reserved for emergencies and platform admin is used for day-to-day operations — platform admin access is explicit and auditable.
-
 ---
 
 ## User Visibility Rules
 
 | Actor | Can see |
 |---|---|
-| Superuser | All users across all departments |
-| Platform Admin | All users across all departments |
-| Dept Admin | Only users in their own department |
+| Superuser | All users, all departments |
+| Platform Admin | All users, all departments |
+| Platform Viewer | All users, all departments |
+| Dept Admin | Own department only, excludes hidden-role users |
+| Dept Viewer | Own department only, excludes hidden-role users |
+
+Superusers (`is_superuser=True`) are always excluded from listing regardless of actor.

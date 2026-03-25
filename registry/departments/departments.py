@@ -4,7 +4,7 @@ _DEPARTMENTS = [
     Department(
         code="GLOBAL",
         name="Global",
-        allowed_systems=("tropos",),
+        allowed_systems=("tropos","ghidora"),
     ),
     Department(
         code="CLOUD_PLATFORM",

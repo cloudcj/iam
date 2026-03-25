@@ -70,9 +70,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # ---- Identity ----
     username = models.CharField(max_length=150, unique=True, db_index=True)
-    first_name = models.CharField(max_length=150, unique=True)
-    last_name = models.CharField(max_length=150, unique=True)
-    email = models.EmailField(null=True, blank=True, db_index=True)
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    email = models.EmailField(unique=True, blank=True, db_index=True)
 
     # ---- Org ownership (REQUIRED) ----
     department = models.ForeignKey(

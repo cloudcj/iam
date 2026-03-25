@@ -145,11 +145,10 @@
 #         )
 #     )
 
-
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
-from apps.common.constants import RoleCodes, HIDDEN_FROM_IAM_ADMIN
+from apps.common.constants import RoleCodes, HIDDEN_FROM_DEPARTMENT_ADMIN, HIDDEN_FROM_PLATFORM_ADMIN
 from apps.common.helpers.authz.role_helpers import has_role
 
 User = get_user_model()
@@ -173,9 +172,17 @@ def list_users(
     # 🔐 VISIBILITY SCOPE — hard limit, cannot be
     #    overridden by filters
     # --------------------------------------------------
-    if is_superuser or is_platform_admin or is_platform_viewer:
-        # Full visibility — all users across all departments
-        qs = User.objects.all()
+    if is_superuser:
+        qs = User.objects.exclude(
+            is_superuser=True  # excludes self + co-superusers
+        ) 
+
+    elif is_platform_admin or is_platform_viewer:
+        # All users across all departments
+        # but cannot see other platform-level users
+        qs = User.objects.exclude(
+            user_roles__role__code__in=HIDDEN_FROM_PLATFORM_ADMIN
+        )
 
     elif is_dept_admin or is_dept_viewer:
         # Own department only
@@ -183,19 +190,18 @@ def list_users(
         qs = (
             User.objects
             .filter(department=actor.department)
-            .exclude(user_roles__role__code__in=HIDDEN_FROM_IAM_ADMIN)
+            .exclude(user_roles__role__code__in=HIDDEN_FROM_DEPARTMENT_ADMIN)
         )
 
     else:
         return User.objects.none()
 
-    # Always exclude superusers from listing
-    qs = qs.exclude(is_superuser=True)
+    # Always exclude superusers from listing (only superuser sees superusers)
+    if not is_superuser:
+        qs = qs.exclude(is_superuser=True)
 
     # --------------------------------------------------
     # 🔎 FILTERS — scope reducers only
-    #    dept admin/viewer filters are further limited
-    #    to their already-scoped queryset
     # --------------------------------------------------
     if search:
         qs = qs.filter(

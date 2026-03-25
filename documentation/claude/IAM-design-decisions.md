@@ -5,25 +5,35 @@ This supersedes and extends the older IAM-roles.md and IAM-user_creation.md wher
 
 ---
 
-## 1. Access Control Model — PBAC
+## 1. Access Control Model — Permission-Based (with Role/Policy UI presets)
 
-This system uses **Policy-Based Access Control (PBAC)**, not RBAC.
+This system uses **Permission-Based Access Control** at runtime.
+Roles and policies are **UI convenience presets only** — they are never checked at authorization time.
 
 ```
-User → Role → Policy → Permission → JWT
+Assignment time:  Role → Policy → Permission → UserPermission (saved)
+Runtime:          UserPermission → JWT permissions[]
 ```
 
 | Concept | Purpose |
 |---|---|
-| Role | UI preset / label — selects a bundle of policies |
-| Policy | Source of truth — defines what permissions are granted |
-| UserRole | Stored for visibility and management rules only |
-| UserPolicy | Source of truth for permissions — what goes into JWT |
-| Permission | Individual action code embedded in JWT |
+| Role | UI preset — selects a bundle of policies for convenience |
+| Policy | UI preset — selects a bundle of permissions for convenience |
+| UserRole | Stored for UI display and reporting only — never checked at auth time |
+| UserPermission | **Source of truth** — individual permissions saved per user, what goes into JWT |
+| Permission | Individual action code (e.g. `inventory.az.read`) |
 
-### Key rule
-Roles are never checked at authorization time. Only UserPolicy → Permission is checked.
-A role could theoretically be deleted and the user would still have their permissions via UserPolicy.
+### Key rules
+- Roles and policies are **never** checked at authorization time
+- Only `UserPermission` rows determine what a user can do
+- A role could be deleted and the user would still have their permissions via `UserPermission`
+- `source` field on `UserPermission` tracks origin: `"role"` (from role preset) or `"direct"` (manually added at update time)
+
+### Why permissions as source of truth (not policies)
+- **1-hop resolution** at login: `UserPermission → JWT` (vs 4-hop chain with policies)
+- **Native fine-grained control**: removing one permission = deleting one row
+- **Future flexibility**: JWT payload can switch from permissions to policy codes by changing one query in the token service — `UserPermission` stays untouched
+- **Simpler update logic**: no need for override models, just add/remove rows
 
 ---
 
@@ -56,14 +66,14 @@ HIDDEN_FROM_IAM_ADMIN = {
 
 ```
 iam.user.read
-iam.user.create
+iam.user.create          — initial creation including role and dept assignment
 iam.user.update          — basic info (name, email, password, status)
 iam.user.delete
 iam.user.update_role     — change an existing user's roles (post-creation)
-iam.user.update_policy   — change an existing user's direct policies (post-creation)
+iam.user.update_policy   — change an existing user's permissions (post-creation)
 iam.user.update_dept     — move an existing user to a different department
-iam.user.assign_policy   — add extra direct policies to a user
-iam.user.remove_policy   — remove direct policies from a user
+iam.user.assign_policy   — add permissions to a user (post-creation)
+iam.user.remove_policy   — remove permissions from a user (post-creation)
 
 iam.department.read
 iam.department.update_systems   — manage which systems a department can access
@@ -71,7 +81,7 @@ iam.department.update_systems   — manage which systems a department can access
 
 ### Clarification — create vs update_*
 
-`iam.user.create` covers the initial role, policy, and department assignment at creation time.
+`iam.user.create` covers the initial role assignment and department at creation time.
 `update_role`, `update_policy`, `update_dept`, `assign_policy`, `remove_policy` are strictly
 post-creation update operations.
 
@@ -107,7 +117,6 @@ Note: `iam.user.manage` does NOT include `update_dept` — dept.admin cannot mov
 | `inventory.az.read_only` | inventory.az.read | inventory.viewer |
 | `inventory.az.full` | all az permissions | inventory.admin |
 | `inventory.device.read_only` | inventory.device.read | inventory.viewer |
-| `inventory.device.full` | all device permissions | inventory.admin |
 
 ---
 
@@ -124,32 +133,33 @@ inventory.admin  →  inventory.az.full + inventory.device.read_only
 inventory.viewer →  inventory.az.read_only + inventory.device.read_only
 ```
 
+At runtime, these all expand to individual `UserPermission` rows.
+
 ---
 
 ## 6. User Creation Rules
 
 ### Superuser
 - Created via seeder/code only — never through the API
-- `User.objects.create_user()` never sets `is_superuser=True` — impossible to create via API by design
+- `User.objects.create_user()` never sets `is_superuser=True` — impossible via API by design
 - Can create any user in any department
 - Can assign any role including platform.admin
-- Can assign any policy regardless of department scope
 - Department is required (use GLOBAL for platform-level users)
+- No role scope restrictions
 
 ### Platform Admin
 - Can create any user in any department
-- Can assign any role EXCEPT platform.admin
-- Can assign any policy regardless of department scope (including out of dept scope)
-- Can add extra policies on top of role policies
+- Can assign any role EXCEPT `platform.admin`
+- Roles must be within the department's `allowed_systems`
 - Department is required
 - Cannot create another platform.admin — superuser only
 
 ### Department Admin
-- Department auto-set to actor's own department — input ignored
+- Department is auto-set to actor's own department — input ignored
 - Can only assign non-hidden roles within dept's allowed systems
-- Role validation: `role.code.split(".")[0] must be in department.allowed_systems`
-- Hidden role validation: `role.code must NOT be in HIDDEN_FROM_IAM_ADMIN`
-- Policies are locked to role's policies — cannot add extras
+- Role validation: `role.code.split(".")[0]` must be in `department.allowed_systems`
+- Hidden role validation: `role.code` must NOT be in `HIDDEN_FROM_IAM_ADMIN`
+- Cannot add extra permissions at creation — locked to role's permissions only
 - Cannot move users between departments
 
 ### Role assignment authority summary
@@ -160,27 +170,34 @@ inventory.viewer →  inventory.az.read_only + inventory.device.read_only
 | platform.viewer | ✅ | ❌ | ❌ |
 | dept.admin | ✅ | ✅ | ❌ |
 | dept.viewer | ✅ | ✅ | ❌ |
-| {system}.admin/viewer | ✅ | ✅ | ✅ (own dept scope) |
+| {system}.admin/viewer | ✅ | ✅ (dept scoped) | ✅ (dept scoped) |
 
 ---
 
-## 7. Policy Assignment at Creation
+## 7. Permission Assignment at Creation vs Update
 
-### How it works
+### Creation time
 ```
-Role selected → auto-expands to role's policies (always included, cannot be removed)
-Extra policies → superuser and platform admin can add on top (optional)
-Dept admin → locked to role policies only, extra policies ignored/rejected
+Role selected → auto-expands: Role → Policy → Permission → UserPermission (source="role")
+No manual permission selection at creation — roles only
+Dept admin: locked to role permissions only
 ```
 
-### Why role policies cannot be unchecked
-Allowing removal of role policies would break the meaning of roles.
-A platform.admin without iam.full is no longer a real platform.admin.
-The role's policies are a guaranteed baseline.
+### Update time (post-creation)
+```
+Superuser:       can add/remove any permission (including role-based), no scope limit
+Platform Admin:  can add/remove any permission within department scope (including role-based)
+Dept Admin:      role change only — no direct permission control
+```
 
-### Extra policies
-Used for temporary or exception access on top of a role.
-Example: a user needs temporary access to a resource outside their normal scope.
+### Why permissions cannot be unchecked at creation
+Creation is always predictable — you get exactly what the role gives.
+Fine-grained control belongs at update time, not creation time.
+
+### UI behavior at update time
+Policies still appear in the UI as **presets for bulk-adding permissions**.
+Selecting a policy preset bulk-checks its permissions — but the API receives only permission UUIDs.
+The policy itself is never saved to DB.
 
 ---
 
@@ -189,7 +206,7 @@ Example: a user needs temporary access to a resource outside their normal scope.
 ### DepartmentAllowedSystem
 Controls which operational systems a department can access.
 Used for:
-1. Dept admin role/policy scope validation at creation time
+1. Dept admin and platform admin role scope validation at creation time
 2. Auto-checking systems in UI when department is selected
 3. Filtering which system roles are visible in UI
 
@@ -248,10 +265,10 @@ ticketing → [Ticketing Viewer ▼]
 One role per system is enforced — having inventory.admin AND inventory.viewer
 simultaneously makes no sense as admin already includes viewer access.
 
-### Policies section
-Auto-selected from chosen roles. Grouped by system > resource.
-- Superuser / Platform Admin → can add extra policies on top (role policies stay checked)
-- Dept Admin → policies are display only, locked to role selection, cannot customize
+### Permissions section (display only at creation)
+Auto-selected from chosen roles. Grouped by system > resource > permission.
+- All actors: permissions are display only at creation, cannot be customized
+- Fine-grained permission control happens at update time only
 
 ### Allowed systems display (superuser and platform admin only)
 When a department is selected, its allowed systems are shown as informational display.
@@ -314,3 +331,6 @@ Dept admin cannot see users with hidden roles in their department:
 qs.filter(department=actor.department)
   .exclude(user_roles__role__code__in=HIDDEN_FROM_IAM_ADMIN)
 ```
+
+### Always excluded from listing
+Superusers (`is_superuser=True`) are always excluded from listing regardless of actor.

@@ -24,30 +24,20 @@
 
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-
+from apps.identity.models import User
 
 class UserCreateSerializer(serializers.Serializer):
     username = serializers.CharField()
-
     password = serializers.CharField(write_only=True)
-
-    email = serializers.EmailField(
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-    )
-
-    department = serializers.UUIDField(
-        required=False,
-        allow_null=True,
-    )
-
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    email = serializers.EmailField()
+    department = serializers.UUIDField()
     roles = serializers.ListField(
         child=serializers.UUIDField(),
         required=True,
         allow_empty=False,
     )
-
     permissions = serializers.ListField(
         child=serializers.UUIDField(),
         required=False,
@@ -55,9 +45,21 @@ class UserCreateSerializer(serializers.Serializer):
         default=list,
     )
 
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("A user with that username already exists.")
+        return value
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with that email already exists.")
+        return value
+
     def validate_password(self, value):
         validate_password(value)
         return value
+
+
 
 
 
