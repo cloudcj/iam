@@ -87,12 +87,16 @@ class DeleteUserView(AuditMixin, APIView):
 
     def get_audit_target_id(self, request, response):
         return self.kwargs.get("user_id")
+    
+    def get_audit_detail(self, request, response):
+        return {"username": getattr(self, "_username", None)}
 
     permission_classes = [IsAuthenticated, HasPermission]
     required_permission = IAMPermissions.USER_DELETE
 
     def delete(self, request, user_id):
         target = get_object_or_404(User, id=user_id)
+        self._username = target.username   # capture before deletion
 
         try:
             delete_user(actor=request.user, target=target)

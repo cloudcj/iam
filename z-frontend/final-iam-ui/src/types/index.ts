@@ -1,3 +1,5 @@
+// ─── User ────────────────────────────────────────────────────────────────────
+
 export interface User {
   id: string
   username: string
@@ -10,7 +12,7 @@ export interface User {
     code: string
     name: string
   } | null
-  roles: string[]
+  roles: string[]   // role codes e.g. ["platform.admin", "tropos.admin"]
 }
 
 export interface UserDetail {
@@ -20,47 +22,34 @@ export interface UserDetail {
   last_name: string
   email: string
   is_active: boolean
-  department: string | null
-  roles: string[]
-  permission_codes: string[]
-  extra_permission_ids: string[]  // source=direct permission IDs
+  department: string | null         // UUID — used to pre-fill the department select
+  roles: string[]                   // role codes
+  permission_codes: string[]        // all effective permission codes
+  extra_permission_ids: string[]    // direct-assigned permission IDs (source=direct)
 }
 
-
-export interface UpdateUserPayload {
-  username?: string
+interface UserBasePayload {
   first_name: string
   last_name: string
   email: string
-  department: string
-  roles: string[]
-  permission_ids?: string[]
+  roles: string[]   // UUID[]
 }
 
-
-
-export interface CreateUserPayload {
+export interface CreateUserPayload extends UserBasePayload {
   username: string
   password: string
-  email?: string
-  first_name: string
-  last_name: string
-  department?: string   // UUID
-  roles: string[]       // UUID[]
+  department?: string   // UUID — optional for dept admin
+}
+
+export interface UpdateUserPayload extends UserBasePayload {
+  username?: string       // superuser only
+  is_active?: boolean
+  department: string      // UUID — always required on update
+  permission_ids?: string[] // UUID[] — superuser/platform admin only
 }
 
 
-
-
-export interface Permission {
-  id: string
-  code: string
-  system: string
-  resource: string
-  action: string
-  description: string
-}
-
+// ─── Me ──────────────────────────────────────────────────────────────────────
 
 export interface Me {
   id: string
@@ -69,30 +58,34 @@ export interface Me {
   first_name: string
   last_name: string
   is_superuser: boolean
-  roles: string[]         // ← role codes e.g. ["platform.admin", "tropos.admin"]
+  roles: string[]         // role codes e.g. ["platform.admin", "tropos.admin"]
   department: {
+    id: string
     code: string
     name: string
   }
   systems: string[]
-  permissions: string[]   // ← permission codes
+  permissions: string[]   // permission codes
 }
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
 
 export interface LoginRequest {
   username: string
   password: string
 }
 
-// Department
+// ─── Department ──────────────────────────────────────────────────────────────
+
 export interface Department {
   id: string
   code: string
   name: string
-  allowed_systems: string[]  // e.g. ["tropos", "ghidora"]
+  allowed_systems: string[]   // e.g. ["tropos", "ghidora"]
 }
 
-// Role
+// ─── Access ──────────────────────────────────────────────────────────────────
+
 export interface Role {
   id: string
   code: string
@@ -101,24 +94,32 @@ export interface Role {
   policies: Policy[]
 }
 
-// Policy
 export interface Policy {
   id: string
   code: string
   name: string
   system: string
   resource: string
-  description: string
+  description?: string        // optional — many policies have no description
   permission_codes: string[]
 }
 
-// Audit logs
+export interface Permission {
+  id: string
+  code: string
+  system: string
+  resource: string
+  action: string
+  description?: string
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
 
 export interface AuditLog {
   id: string
-  actor: string | null
-  actor_name: string | null
-  department: string | null
+  actor: string | null          // username
+  actor_name: string | null     // full name
+  department: string | null     // actor's department name
   action: string
   target_id: string | null
   target_type: string

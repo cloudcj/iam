@@ -23,9 +23,9 @@ class AuditLog(models.Model):
         USER_CHANGE_PASSWORD = "user.change_password"
 
         # Department
-        DEPT_CREATE = "dept.create"
-        DEPT_UPDATE = "dept.update"
-        DEPT_DELETE = "dept.delete"
+        DEPT_CREATE = "department.create"
+        DEPT_UPDATE = "department.update"
+        DEPT_DELETE = "department.delete"
 
     class Status(models.TextChoices):
         SUCCESS = "success"

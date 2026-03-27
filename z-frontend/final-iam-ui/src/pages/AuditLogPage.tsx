@@ -5,20 +5,24 @@ import { DataTable } from "mantine-datatable"
 import { useGetAuditLogsQuery, useGetMeQuery } from "../services/iamApi"
 import type { AuditLog, AuditLogParams } from "../types"
 
+const ACTION_LABELS: Record<string, string> = {
+  "auth.login":            "Login",
+  "auth.login_failed":     "Login Failed",
+  "auth.logout":           "Logout",
+  "auth.token_refresh":    "Token Refresh",
+  "user.create":           "User Created",
+  "user.update":           "User Updated",
+  "user.delete":           "User Deleted",
+  "user.reset_password":   "Password Reset",
+  "user.change_password":  "Password Changed",
+  "department.create":     "Department Created",
+  "department.update":     "Department Updated",
+  "department.delete":     "Department Deleted",
+}
+
 const ACTION_OPTIONS = [
   { value: "", label: "All Actions" },
-  { value: "auth.login", label: "Login" },
-  { value: "auth.login_failed", label: "Login Failed" },
-  { value: "auth.logout", label: "Logout" },
-  { value: "auth.token_refresh", label: "Token Refresh" },
-  { value: "user.create", label: "User Created" },
-  { value: "user.update", label: "User Updated" },
-  { value: "user.delete", label: "User Deleted" },
-  { value: "user.reset_password", label: "Password Reset" },
-  { value: "user.change_password", label: "Password Changed" },
-  { value: "dept.create", label: "Department Created" },
-  { value: "dept.update", label: "Department Updated" },
-  { value: "dept.delete", label: "Department Deleted" },
+  ...Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label })),
 ]
 
 const PAGE_SIZE = 20
@@ -48,6 +52,9 @@ export default function AuditLogPage() {
     setPage(1)
     setFilters({})
   }
+
+  const getTargetName = (log: AuditLog) =>
+    log.detail?.name ?? log.detail?.username ?? log.detail?.target ?? null
 
   if (!canView) {
     return <Text c="red">You do not have permission to view audit logs.</Text>
@@ -115,7 +122,7 @@ export default function AuditLogPage() {
           {
             accessor: "timestamp",
             title: "Timestamp",
-            width: 180,
+            width: 160,
             render: (log) => {
               const d = new Date(log.timestamp)
               return (
@@ -129,27 +136,36 @@ export default function AuditLogPage() {
           {
             accessor: "actor",
             title: "Actor",
-            width: 140,
+            width: 130,
             render: (log) => log.actor ?? <Text c="dimmed" size="sm">anonymous</Text>,
           },
           {
             accessor: "department",
             title: "Department",
-            width: 140,
+            width: 130,
             render: (log) => log.department ?? "—",
           },
           {
             accessor: "action",
             title: "Action",
             width: 180,
-            render: (log) => (
-              <Text size="sm" ff="monospace">{log.action}</Text>
-            ),
+            render: (log) => ACTION_LABELS[log.action] ?? log.action,
+          },
+          {
+            accessor: "target",
+            title: "Target",
+            width: 150,
+            render: (log) => {
+              const name = getTargetName(log)
+              return name
+                ? <Text size="sm">{name}</Text>
+                : <Text size="sm" c="dimmed">—</Text>
+            },
           },
           {
             accessor: "status",
             title: "Status",
-            width: 100,
+            width: 90,
             render: (log) => (
               <Badge color={log.status === "success" ? "green" : "red"} variant="light" size="sm">
                 {log.status}
@@ -157,32 +173,26 @@ export default function AuditLogPage() {
             ),
           },
           {
-            accessor: "target_type",
-            title: "Target",
-            width: 100,
-            render: (log) => log.target_type || "—",
-          },
-          {
             accessor: "ip_address",
             title: "IP Address",
-            width: 130,
+            width: 120,
             render: (log) => log.ip_address ?? "—",
           },
           {
             accessor: "browser",
             title: "Browser",
-            width: 160,
+            width: 150,
             render: (log) => log.detail?.browser ?? "—",
-            },
-            {
+          },
+          {
             accessor: "os",
             title: "OS / Device",
-            width: 160,
+            width: 150,
             render: (log) =>
-                log.detail?.os
+              log.detail?.os
                 ? `${log.detail.os} · ${log.detail.device}`
                 : "—",
-            },
+          },
           {
             accessor: "detail",
             title: "Details",
@@ -202,12 +212,13 @@ export default function AuditLogPage() {
           },
         ]}
       />
+
       <Modal
         opened={!!detailLog}
         onClose={() => setDetailLog(null)}
         title={
           <Stack gap={2}>
-            <Text fw={600} size="sm">{detailLog?.action}</Text>
+            <Text fw={600} size="sm">{detailLog ? ACTION_LABELS[detailLog.action] ?? detailLog.action : ""}</Text>
             <Text size="xs" c="dimmed">{detailLog ? new Date(detailLog.timestamp).toLocaleString() : ""}</Text>
           </Stack>
         }

@@ -16,18 +16,15 @@ class DeleteDepartmentView(AuditMixin, APIView):
     audit_action = AuditLog.Action.DEPT_DELETE
     audit_target_type = "department"
 
-    def get_audit_target_id(self, request, response):
-        return self.kwargs.get("department_id")
-
-    permission_classes = [IsAuthenticated, HasPermission]
-    required_permission = IAMPermissions.DEPARTMENT_DELETE
+    def get_audit_detail(self, request, response):
+        return {"name": getattr(self, "_dept_name", None)}
 
     def delete(self, request, department_id):
         department = get_object_or_404(Department, id=department_id)
+        self._dept_name = department.name   # capture before deletion
 
         if department.code == "GLOBAL":
             return Response({"detail": "The GLOBAL department cannot be deleted."}, status=status.HTTP_403_FORBIDDEN)
-
         if department.users.exists():
             return Response({"detail": "Cannot delete a department that has users assigned to it."}, status=status.HTTP_400_BAD_REQUEST)
 
