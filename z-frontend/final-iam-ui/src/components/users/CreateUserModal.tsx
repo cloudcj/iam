@@ -80,37 +80,29 @@ export default function CreateUserModal({ opened, onClose }: Props) {
     : []
 
   const managementRoleOptions = useMemo(() => {
-    if (isDeptAdmin) return [];
+  if (isDeptAdmin) return []
 
-    const isGlobal = selectedDept?.code === "GLOBAL"
-    const base = [{ value: "", label: "None" }]
+  const isGlobal = selectedDept?.code === "GLOBAL"
+  const base = [{ value: "", label: "None" }]
 
-    if (isSuperuser) {
-        if (isGlobal) {
-        return [
-            ...base,
-            { value: "platform.viewer", label: "Platform Viewer" },
-            { value: "platform.admin", label: "Platform Admin" },
-        ]
-        }
-        return [
-        ...base,
-        { value: "department.viewer", label: "Department Viewer" },
-        { value: "department.admin", label: "Department Admin" },
-        { value: "platform.viewer", label: "Platform Viewer" },
-        { value: "platform.admin", label: "Platform Admin" },
-        ]
-    }
+  const platformRoles = roles
+    ?.filter((r) => r.code.startsWith("platform."))
+    .map((r) => ({ value: r.code, label: r.name })) ?? []
 
-    // Platform admin — only dept roles, and only for real departments
-    if (isGlobal) return base  // no management role options for GLOBAL
-    return [
-        ...base,
-        { value: "department.viewer", label: "Department Viewer" },
-        { value: "department.admin", label: "Department Admin" },
-    ]
-    }, [isSuperuser, isDeptAdmin, selectedDept]);
+  const deptRoles = roles
+    ?.filter((r) => r.code.startsWith("department."))
+    .map((r) => ({ value: r.code, label: r.name })) ?? []
 
+
+  if (isSuperuser) {
+    return isGlobal
+      ? [...base, ...platformRoles]
+      : [...base, ...deptRoles, ...platformRoles]
+  }
+
+  // Platform admin — only dept roles, not for GLOBAL
+  return isGlobal ? base : [...base, ...deptRoles]
+}, [isSuperuser, isDeptAdmin, selectedDept, roles])
 
   const getRolesForSystem = (system: string) =>
     roles?.filter((r) => r.system === system && !HIDDEN_ROLES.has(r.code)) ?? [];

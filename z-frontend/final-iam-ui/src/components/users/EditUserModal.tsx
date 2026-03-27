@@ -153,15 +153,28 @@ export default function EditUserModal({ user, onClose }: Props) {
 
   const managementRoleOptions = useMemo(() => {
     if (isDeptAdmin) return []
+
     const isGlobal = selectedDept?.code === "GLOBAL"
     const base = [{ value: "", label: "None" }]
+
+    const platformRoles = roles
+      ?.filter((r) => r.code.startsWith("platform."))
+      .map((r) => ({ value: r.code, label: r.name })) ?? []
+
+    const deptRoles = roles
+      ?.filter((r) => r.code.startsWith("department."))
+      .map((r) => ({ value: r.code, label: r.name })) ?? []
+
+
     if (isSuperuser) {
-      if (isGlobal) return [...base, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
-      return [...base, { value: "department.viewer", label: "Department Viewer" }, { value: "department.admin", label: "Department Admin" }, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
+      return isGlobal
+        ? [...base, ...platformRoles]
+        : [...base, ...deptRoles, ...platformRoles]
     }
-    if (isGlobal) return base
-    return [...base, { value: "department.viewer", label: "Department Viewer" }, { value: "department.admin", label: "Department Admin" }]
-  }, [isSuperuser, isDeptAdmin, selectedDept])
+
+    return isGlobal ? base : [...base, ...deptRoles]
+  }, [isSuperuser, isDeptAdmin, selectedDept, roles])
+
 
   const getRolesForSystem = (system: string) =>
     roles?.filter((r) => r.system === system && !HIDDEN_ROLES.has(r.code)) ?? []

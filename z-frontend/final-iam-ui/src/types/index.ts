@@ -11,7 +11,7 @@ export interface User {
     id: string
     code: string
     name: string
-  } | null
+  }
   roles: string[]   // role codes e.g. ["platform.admin", "tropos.admin"]
 }
 
@@ -38,7 +38,7 @@ interface UserBasePayload {
 export interface CreateUserPayload extends UserBasePayload {
   username: string
   password: string
-  department?: string   // UUID — optional for dept admin
+  department: string   // UUID — always resolved before sending
 }
 
 export interface UpdateUserPayload extends UserBasePayload {
