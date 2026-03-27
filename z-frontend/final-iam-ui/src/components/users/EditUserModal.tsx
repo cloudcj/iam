@@ -18,7 +18,7 @@ import {
 import type { User, Permission } from "../../types"
 
 const PLATFORM_ROLES = new Set(["platform.admin", "platform.viewer"])
-const HIDDEN_ROLES = new Set(["platform.admin", "platform.viewer", "dept.admin", "dept.viewer"])
+const HIDDEN_ROLES = new Set(["platform.admin", "platform.viewer", "department.admin", "department.viewer"])
 
 interface Props {
   user: User | null
@@ -157,10 +157,10 @@ export default function EditUserModal({ user, onClose }: Props) {
     const base = [{ value: "", label: "None" }]
     if (isSuperuser) {
       if (isGlobal) return [...base, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
-      return [...base, { value: "dept.viewer", label: "Department Viewer" }, { value: "dept.admin", label: "Department Admin" }, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
+      return [...base, { value: "department.viewer", label: "Department Viewer" }, { value: "department.admin", label: "Department Admin" }, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
     }
     if (isGlobal) return base
-    return [...base, { value: "dept.viewer", label: "Department Viewer" }, { value: "dept.admin", label: "Department Admin" }]
+    return [...base, { value: "department.viewer", label: "Department Viewer" }, { value: "department.admin", label: "Department Admin" }]
   }, [isSuperuser, isDeptAdmin, selectedDept])
 
   const getRolesForSystem = (system: string) =>

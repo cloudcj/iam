@@ -17,8 +17,8 @@ class RoleCodes:
     PLATFORM_VIEWER = "platform.viewer"
 
     # Department (Tier 2)
-    DEPT_ADMIN  = "dept.admin"
-    DEPT_VIEWER = "dept.viewer"
+    DEPT_ADMIN  = "department.admin"
+    DEPT_VIEWER = "department.viewer"
 
     # Inventory (Tier 3)
     INVENTORY_VIEWER = "inventory.viewer"

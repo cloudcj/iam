@@ -22,8 +22,8 @@ const PLATFORM_ROLES = new Set([
 const HIDDEN_ROLES = new Set([
   "platform.admin",
   "platform.viewer",
-  "dept.admin",
-  "dept.viewer",
+  "department.admin",
+  "department.viewer",
 ]);
 
 interface Props {
@@ -95,8 +95,8 @@ export default function CreateUserModal({ opened, onClose }: Props) {
         }
         return [
         ...base,
-        { value: "dept.viewer", label: "Department Viewer" },
-        { value: "dept.admin", label: "Department Admin" },
+        { value: "department.viewer", label: "Department Viewer" },
+        { value: "department.admin", label: "Department Admin" },
         { value: "platform.viewer", label: "Platform Viewer" },
         { value: "platform.admin", label: "Platform Admin" },
         ]
@@ -106,8 +106,8 @@ export default function CreateUserModal({ opened, onClose }: Props) {
     if (isGlobal) return base  // no management role options for GLOBAL
     return [
         ...base,
-        { value: "dept.viewer", label: "Department Viewer" },
-        { value: "dept.admin", label: "Department Admin" },
+        { value: "department.viewer", label: "Department Viewer" },
+        { value: "department.admin", label: "Department Admin" },
     ]
     }, [isSuperuser, isDeptAdmin, selectedDept]);
 
