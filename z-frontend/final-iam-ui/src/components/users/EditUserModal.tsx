@@ -1,27 +1,24 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Modal, TextInput, Stack, Select, Box,
   Paper, Divider, Alert, ThemeIcon, Group, Text, Button,
+  Checkbox, Collapse, UnstyledButton, Badge, ActionIcon,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
-import { IconAlertCircle, IconShield } from "@tabler/icons-react"
+import { IconAlertCircle, IconShield, IconChevronDown, IconChevronUp, IconX } from "@tabler/icons-react"
 import {
   useUpdateUserMutation,
   useGetRolesQuery,
   useGetDepartmentsQuery,
   useGetMeQuery,
+  useGetUserQuery,
+  useGetPoliciesQuery,
+  useGetPermissionsQuery,
 } from "../../services/iamApi"
-import type { User, Policy } from "../../types"
-import PolicyCard from "./PolicyCard"
+import type { User, Permission } from "../../types"
 
-const PLATFORM_ROLES = new Set([
-  "platform.admin",
-  "platform.viewer",
-])
-
-const HIDDEN_ROLES = new Set([
-  "platform.admin", "platform.viewer", "dept.admin", "dept.viewer",
-])
+const PLATFORM_ROLES = new Set(["platform.admin", "platform.viewer"])
+const HIDDEN_ROLES = new Set(["platform.admin", "platform.viewer", "dept.admin", "dept.viewer"])
 
 interface Props {
   user: User | null
@@ -32,23 +29,26 @@ export default function EditUserModal({ user, onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [managementRole, setManagementRole] = useState<string | null>(null)
   const [systemRoles, setSystemRoles] = useState<Record<string, string>>({})
+  const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([])
+  const [directPermIds, setDirectPermIds] = useState<string[]>([])
+  const [showExtraPerms, setShowExtraPerms] = useState(false)
+  const initializedRef = useRef(false)
 
   const { data: me } = useGetMeQuery()
   const { data: roles } = useGetRolesQuery()
   const { data: departments } = useGetDepartmentsQuery()
+  const { data: allPolicies } = useGetPoliciesQuery()
+  const { data: allPermissions } = useGetPermissionsQuery()
+  const { data: userDetail } = useGetUserQuery(user?.id ?? "", { skip: !user, refetchOnMountOrArgChange: true })
   const [updateUser, { isLoading }] = useUpdateUserMutation()
 
   const isSuperuser = me?.is_superuser ?? false
   const isPlatformAdmin = !isSuperuser && (me?.permissions?.includes("iam.user.update_dept") ?? false)
   const isDeptAdmin = !isSuperuser && !isPlatformAdmin
+  const canAssignDirect = isSuperuser || isPlatformAdmin
 
   const form = useForm({
-    initialValues: {
-      first_name: "",
-      last_name: "",
-      email: "",
-      department: "",
-    },
+    initialValues: { username: "", first_name: "", last_name: "", email: "", department: "" },
     validate: {
       first_name: (v) => (v.trim() ? null : "First name is required"),
       last_name: (v) => (v.trim() ? null : "Last name is required"),
@@ -57,21 +57,55 @@ export default function EditUserModal({ user, onClose }: Props) {
     },
   })
 
+  const getPermCodesForPolicy = useCallback((policyId: string, inlineCodes?: string[]): string[] => {
+    if (inlineCodes?.length) return inlineCodes
+    return allPolicies?.find((p) => p.id === policyId)?.permission_codes ?? []
+  }, [allPolicies])
+
+  const computePermissionsForRole = useCallback((roleId: string): string[] => {
+    if (!roles || !allPermissions || !roleId) return []
+    const role = roles.find((r) => r.id === roleId)
+    if (!role) return []
+    const permCodes = new Set<string>()
+    for (const policy of role.policies) {
+      getPermCodesForPolicy(policy.id, policy.permission_codes).forEach((c) => permCodes.add(c))
+    }
+    return allPermissions.filter((p) => permCodes.has(p.code)).map((p) => p.id)
+  }, [roles, allPermissions, getPermCodesForPolicy])
+
+  const computePermissionsFromRoles = useCallback((
+    mgmtRole: string | null,
+    sysRoles: Record<string, string>
+  ): string[] => {
+    if (!roles || !allPermissions) return []
+    const roleIds = [
+      ...(mgmtRole ? [roles.find((r) => r.code === mgmtRole)?.id] : []),
+      ...Object.values(sysRoles).filter(Boolean),
+    ].filter(Boolean) as string[]
+    const permCodes = new Set<string>()
+    for (const roleId of roleIds) {
+      const role = roles.find((r) => r.id === roleId)
+      if (!role) continue
+      for (const policy of role.policies) {
+        getPermCodesForPolicy(policy.id, policy.permission_codes).forEach((c) => permCodes.add(c))
+      }
+    }
+    return allPermissions.filter((p) => permCodes.has(p.code)).map((p) => p.id)
+  }, [roles, allPermissions, getPermCodesForPolicy])
+
   useEffect(() => {
     if (!user) return
-
     form.setValues({
+      username: user.username ?? "",
       first_name: user.first_name ?? "",
       last_name: user.last_name ?? "",
       email: user.email ?? "",
       department: user.department?.id ?? "",
     })
-
     if (roles) {
       const userRoleCodes = user.roles
       const mgmtRole = userRoleCodes.find((code) => HIDDEN_ROLES.has(code))
       setManagementRole(mgmtRole ?? null)
-
       const sysRoles: Record<string, string> = {}
       userRoleCodes
         .filter((code) => !HIDDEN_ROLES.has(code))
@@ -79,9 +113,29 @@ export default function EditUserModal({ user, onClose }: Props) {
           const role = roles.find((r) => r.code === code)
           if (role) sysRoles[role.system] = role.id
         })
+      // Auto-select system roles if platform role is pre-filled but no system roles exist
+      if (mgmtRole && PLATFORM_ROLES.has(mgmtRole) && Object.keys(sysRoles).length === 0) {
+        const suffix = mgmtRole.endsWith(".admin") ? "admin" : "viewer"
+        const computedAllSystems = [...new Set(roles.map((r) => r.system).filter((s) => !['iam', 'dept', 'platform'].includes(s)))]
+        for (const system of computedAllSystems) {
+          const match = roles.find((r) => r.code === `${system}.${suffix}`)
+          if (match) sysRoles[system] = match.id
+        }
+      }
       setSystemRoles(sysRoles)
     }
-  }, [user, roles])
+    if (!initializedRef.current && userDetail && allPermissions) {
+      if (isSuperuser) {
+        const userPermCodes = new Set(userDetail.permission_codes)
+        const preChecked = allPermissions.filter((p) => userPermCodes.has(p.code)).map((p) => p.id)
+        setSelectedPermissionIds(preChecked)
+      } else if (isPlatformAdmin) {
+        setDirectPermIds(userDetail.extra_permission_ids)
+        setSelectedPermissionIds([])
+      }
+      initializedRef.current = true
+    }
+  }, [user, roles, userDetail, allPermissions])
 
   const myDept = useMemo(() => {
     if (!isDeptAdmin || !me?.department || !departments) return null
@@ -90,7 +144,6 @@ export default function EditUserModal({ user, onClose }: Props) {
 
   const selectedDeptId = isDeptAdmin ? (myDept?.id ?? "") : form.values.department
   const selectedDept = departments?.find((d) => d.id === selectedDeptId)
-//   const allowedSystems = selectedDept?.allowed_systems ?? []
   const hasDepartment = isDeptAdmin ? !!myDept : !!form.values.department
   const allSystems = [...new Set(roles?.map((r) => r.system).filter((s) => !['iam', 'dept', 'platform'].includes(s)) ?? [])]
   const isPlatformManagementRole = !!managementRole && PLATFORM_ROLES.has(managementRole)
@@ -103,9 +156,7 @@ export default function EditUserModal({ user, onClose }: Props) {
     const isGlobal = selectedDept?.code === "GLOBAL"
     const base = [{ value: "", label: "None" }]
     if (isSuperuser) {
-      if (isGlobal) {
-        return [...base, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
-      }
+      if (isGlobal) return [...base, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
       return [...base, { value: "dept.viewer", label: "Department Viewer" }, { value: "dept.admin", label: "Department Admin" }, { value: "platform.viewer", label: "Platform Viewer" }, { value: "platform.admin", label: "Platform Admin" }]
     }
     if (isGlobal) return base
@@ -115,24 +166,65 @@ export default function EditUserModal({ user, onClose }: Props) {
   const getRolesForSystem = (system: string) =>
     roles?.filter((r) => r.system === system && !HIDDEN_ROLES.has(r.code)) ?? []
 
-  const resolvedPolicies = useMemo(() => {
-    const seen = new Set<string>()
-    const result: { policy: Policy; color: string }[] = []
-
-    if (managementRole) {
-      roles?.find((r) => r.code === managementRole)?.policies.forEach((p) => {
-        if (!seen.has(p.id)) { seen.add(p.id); result.push({ policy: p, color: "blue" }) }
-      })
+  const groupAndSort = (perms: Permission[]): Record<string, Record<string, Permission[]>> => {
+    const grouped: Record<string, Record<string, Permission[]>> = {}
+    for (const p of perms) {
+      if (!grouped[p.system]) grouped[p.system] = {}
+      if (!grouped[p.system][p.resource]) grouped[p.system][p.resource] = []
+      grouped[p.system][p.resource].push(p)
     }
+    for (const system of Object.keys(grouped)) {
+      for (const resource of Object.keys(grouped[system])) {
+        grouped[system][resource].sort((a, b) => {
+          if (a.action === "read") return -1
+          if (b.action === "read") return 1
+          return a.action.localeCompare(b.action)
+        })
+      }
+    }
+    return grouped
+  }
 
-    Object.entries(systemRoles).filter(([, id]) => id).forEach(([, id]) => {
-      roles?.find((r) => r.id === id)?.policies.forEach((p) => {
-        if (!seen.has(p.id)) { seen.add(p.id); result.push({ policy: p, color: "teal" }) }
-      })
-    })
+  const allPermissionsBySystemResource = useMemo((): Record<string, Record<string, Permission[]>> => {
+    if (!allPermissions) return {}
+    return groupAndSort(allPermissions)
+  }, [allPermissions])
 
-    return result
-  }, [managementRole, systemRoles, roles])
+  const addablePermissionsBySystemResource = useMemo((): Record<string, Record<string, Permission[]>> => {
+    if (!allPermissions) return {}
+    const userPerms = new Set(userDetail?.permission_codes ?? [])
+    const directIds = new Set(directPermIds)
+    const filtered = allPermissions.filter((p) => !userPerms.has(p.code) && !directIds.has(p.id))
+    return groupAndSort(filtered)
+  }, [allPermissions, userDetail, directPermIds])
+
+  const currentDirectPerms = useMemo((): Permission[] => {
+    if (!allPermissions || !directPermIds.length) return []
+    const ids = new Set(directPermIds)
+    return allPermissions.filter((p) => ids.has(p.id))
+  }, [allPermissions, directPermIds])
+
+  const togglePermission = (perm: Permission, checkedIds: string[], setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    const isRead = perm.action === "read"
+    if (isRead) {
+      const isChecked = checkedIds.includes(perm.id)
+      if (isChecked) {
+        const resourcePermIds = new Set(
+          allPermissions?.filter((p) => p.system === perm.system && p.resource === perm.resource).map((p) => p.id) ?? []
+        )
+        setter((prev) => prev.filter((id) => !resourcePermIds.has(id)))
+      } else {
+        setter((prev) => [...prev, perm.id])
+      }
+    } else {
+      const readPerm = allPermissions?.find(
+        (p) => p.system === perm.system && p.resource === perm.resource && p.action === "read"
+      )
+      const readChecked = readPerm ? checkedIds.includes(readPerm.id) : false
+      if (!readChecked) return
+      setter((prev) => prev.includes(perm.id) ? prev.filter((x) => x !== perm.id) : [...prev, perm.id])
+    }
+  }
 
   const closeModal = () => {
     onClose()
@@ -140,25 +232,35 @@ export default function EditUserModal({ user, onClose }: Props) {
     form.reset()
     setManagementRole(null)
     setSystemRoles({})
+    setSelectedPermissionIds([])
+    setDirectPermIds([])
+    setShowExtraPerms(false)
+    initializedRef.current = false
   }
 
   const handleSubmit = async (values: typeof form.values) => {
     if (!user) return
     setError(null)
-
     const deptId = isDeptAdmin ? (myDept?.id ?? "") : values.department
     if (!deptId) { setError("Department is required"); return }
-
     const systemRoleIds = Object.values(systemRoles).filter(Boolean)
     const managementRoleId = managementRole ? roles?.find((r) => r.code === managementRole)?.id : null
     const allRoleIds = [...(managementRoleId ? [managementRoleId] : []), ...systemRoleIds]
-
     if (allRoleIds.length === 0) { setError("User must have at least one role"); return }
-
+    if (allowedSystems.length > 0 && systemRoleIds.length === 0) { setError("At least one system role is required"); return }
+    const finalPermissionIds = isSuperuser
+      ? selectedPermissionIds
+      : [...directPermIds, ...selectedPermissionIds]
     try {
       await updateUser({
         id: user.id,
-        body: { ...values, department: deptId, roles: allRoleIds } as any,
+        body: {
+          ...values,
+          ...(isSuperuser && values.username ? { username: values.username } : {}),
+          department: deptId,
+          roles: allRoleIds,
+          ...(canAssignDirect && { permission_ids: finalPermissionIds }),
+        },
       }).unwrap()
       closeModal()
     } catch (err: any) {
@@ -169,7 +271,46 @@ export default function EditUserModal({ user, onClose }: Props) {
   }
 
   const departmentOptions = departments?.map((d) => ({ value: d.id, label: d.name })) ?? []
-  const hasSelectedRoles = managementRole || Object.values(systemRoles).some(Boolean)
+
+  const renderPermissionGroup = (
+    bySystemResource: Record<string, Record<string, Permission[]>>,
+    checkedIds: string[],
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    userHasReadFn?: (system: string, resource: string) => boolean
+  ) => (
+    <>
+      {Object.entries(bySystemResource).map(([system, resources]) => (
+        <Box key={system}>
+          <Text size="xs" fw={700} tt="uppercase" c="dimmed" mb={8}>{system}</Text>
+          <Stack gap="xs">
+            {Object.entries(resources).map(([resource, perms]) => {
+              const readPerm = perms.find((p) => p.action === "read")
+              const readInChecked = readPerm ? checkedIds.includes(readPerm.id) : false
+              const readFromUser = userHasReadFn ? userHasReadFn(system, resource) : false
+              const readChecked = readInChecked || readFromUser
+              return (
+                <Paper key={resource} withBorder p="sm">
+                  <Text size="xs" fw={600} c="dimmed" mb={6} tt="capitalize">{resource}</Text>
+                  <Stack gap={6}>
+                    {perms.map((p) => (
+                      <Checkbox
+                        key={p.id}
+                        label={p.action}
+                        description={p.code}
+                        checked={checkedIds.includes(p.id)}
+                        disabled={p.action !== "read" && !readChecked}
+                        onChange={() => togglePermission(p, checkedIds, setter)}
+                      />
+                    ))}
+                  </Stack>
+                </Paper>
+              )
+            })}
+          </Stack>
+        </Box>
+      ))}
+    </>
+  )
 
   return (
     <Modal
@@ -191,7 +332,16 @@ export default function EditUserModal({ user, onClose }: Props) {
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
 
-          <TextInput label="Username" value={user?.username ?? ""} disabled />
+          {isSuperuser ? (
+            <>
+              <TextInput label="Username" {...form.getInputProps("username")} />
+              <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
+                Changing the username will invalidate the user's active tokens within 15 minutes.
+              </Alert>
+            </>
+          ) : (
+            <TextInput label="Username" value={user?.username ?? ""} disabled />
+          )}
           <TextInput required label="First Name" {...form.getInputProps("first_name")} />
           <TextInput required label="Last Name" {...form.getInputProps("last_name")} />
           <TextInput required label="Email" {...form.getInputProps("email")} />
@@ -222,17 +372,24 @@ export default function EditUserModal({ user, onClose }: Props) {
                 value={managementRole}
                 onChange={(val) => {
                   setManagementRole(val)
-                  const isPlatformRole = val === "platform.admin" || val === "platform.viewer"
-                  if (isPlatformRole && allowedSystems.length > 0) {
-                    const suffix = val.endsWith(".admin") ? "admin" : "viewer"
+                  const isPlatformRole = val ? PLATFORM_ROLES.has(val) : false
+                  const effectiveSystems = isPlatformRole ? allSystems : (selectedDept?.allowed_systems ?? [])
+                  if (isPlatformRole && effectiveSystems.length > 0) {
+                    const suffix = val!.endsWith(".admin") ? "admin" : "viewer"
                     const autoSelected: Record<string, string> = {}
-                    for (const system of allowedSystems) {
+                    for (const system of effectiveSystems) {
                       const match = roles?.find((r) => r.code === `${system}.${suffix}`)
                       if (match) autoSelected[system] = match.id
                     }
                     setSystemRoles(autoSelected)
+                    if (isSuperuser) {
+                      setSelectedPermissionIds(computePermissionsFromRoles(val, autoSelected))
+                    }
                   } else if (!val) {
                     setSystemRoles({})
+                    if (isSuperuser) setSelectedPermissionIds([])
+                  } else if (isSuperuser) {
+                    setSelectedPermissionIds(computePermissionsFromRoles(val, systemRoles))
                   }
                 }}
                 clearable
@@ -250,12 +407,24 @@ export default function EditUserModal({ user, onClose }: Props) {
                     <Group justify="space-between" align="center">
                       <Text size="sm" c="dimmed" ff="monospace" w={100}>{system}</Text>
                       <Select
-                        placeholder={hasDepartment ? "Select role" : "Select a department first"}
+                        placeholder="Select role"
                         data={getRolesForSystem(system).map((r) => ({ value: r.id, label: r.name }))}
                         value={systemRoles[system] ?? null}
-                        onChange={(val) => setSystemRoles((prev) => ({ ...prev, [system]: val ?? "" }))}
+                        onChange={(val) => {
+                          const oldRoleId = systemRoles[system] ?? ""
+                          const updated = { ...systemRoles, [system]: val ?? "" }
+                          setSystemRoles(updated)
+                          if (isSuperuser) {
+                            const oldPerms = new Set(computePermissionsForRole(oldRoleId))
+                            const newPerms = computePermissionsForRole(val ?? "")
+                            setSelectedPermissionIds((prev) => {
+                              const base = prev.filter((id) => !oldPerms.has(id))
+                              const toAdd = newPerms.filter((id) => !base.includes(id))
+                              return [...base, ...toAdd]
+                            })
+                          }
+                        }}
                         clearable
-                        disabled={!hasDepartment}
                         style={{ flex: 1 }}
                       />
                     </Group>
@@ -265,22 +434,80 @@ export default function EditUserModal({ user, onClose }: Props) {
             </>
           )}
 
-          {hasSelectedRoles && (
+          {canAssignDirect && (
             <>
-              <Divider label="Policies" labelPosition="left" />
-              <Stack gap="xs">
-                {resolvedPolicies.map(({ policy, color }) => (
-                  <PolicyCard key={policy.id} policy={policy} color={color} />
-                ))}
-                <Text size="xs" c="dimmed" mt={4}>
-                  These policies are auto-assigned from selected roles and cannot be changed at update.
-                </Text>
-              </Stack>
+              <Divider />
+              <UnstyledButton onClick={() => setShowExtraPerms((v) => !v)}>
+                <Group gap={4}>
+                  <Text size="sm" fw={500}>Permissions</Text>
+                  {showExtraPerms ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                </Group>
+              </UnstyledButton>
+
+              <Collapse in={showExtraPerms}>
+                <Stack gap="sm" mt="xs">
+
+                  {isSuperuser && (
+                    <>
+                      <Text size="xs" c="dimmed">
+                        Check/uncheck any permission. Role selections above are presets.
+                      </Text>
+                      {renderPermissionGroup(allPermissionsBySystemResource, selectedPermissionIds, setSelectedPermissionIds)}
+                    </>
+                  )}
+
+                  {isPlatformAdmin && (
+                    <>
+                      {currentDirectPerms.length > 0 && (
+                        <Box>
+                          <Text size="xs" fw={600} c="dimmed" mb={6}>Current Direct Permissions</Text>
+                          <Group gap="xs">
+                            {currentDirectPerms.map((p) => (
+                              <Badge
+                                key={p.id}
+                                variant="light"
+                                color="blue"
+                                rightSection={
+                                  <ActionIcon
+                                    size="xs"
+                                    variant="transparent"
+                                    onClick={() => setDirectPermIds((prev) => prev.filter((id) => id !== p.id))}
+                                  >
+                                    <IconX size={10} />
+                                  </ActionIcon>
+                                }
+                              >
+                                {p.code}
+                              </Badge>
+                            ))}
+                          </Group>
+                        </Box>
+                      )}
+
+                      <Box>
+                        <Text size="xs" fw={600} c="dimmed" mb={6}>Add Permissions</Text>
+                        <Text size="xs" c="dimmed" mb={8}>Only showing permissions this user does not have yet.</Text>
+                        {Object.keys(addablePermissionsBySystemResource).length === 0 ? (
+                          <Text size="xs" c="dimmed">User already has all available permissions.</Text>
+                        ) : (
+                          renderPermissionGroup(
+                            addablePermissionsBySystemResource,
+                            selectedPermissionIds,
+                            setSelectedPermissionIds,
+                            (system, resource) =>
+                              userDetail?.permission_codes?.includes(`${system}.${resource}.read`) ?? false
+                          )
+                        )}
+                      </Box>
+                    </>
+                  )}
+
+                </Stack>
+              </Collapse>
             </>
           )}
 
           <Divider />
-
           <Group justify="flex-end">
             <Button variant="default" onClick={closeModal}>Cancel</Button>
             <Button type="submit" loading={isLoading}>Save</Button>

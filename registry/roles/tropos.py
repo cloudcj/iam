@@ -2,20 +2,28 @@ from .schema import Role
 
 _ROLES = [
     Role(
-        code="tropos.viewer",
-        name="Tropos Viewer",
+        code="tropos.admin",
+        name="Tropos Admin",
+        policies=("tropos.full",),
+    ),
+    Role(
+        code="tropos.operator", # no approval access
+        name="Tropos Operator",
         policies=(
-            "tropos.az.read_only",
-            "tropos.device.read_only",
+            "tropos.region.full",
+            "tropos.az.full",
+            "tropos.building.full",
+            "tropos.device.full",
         ),
     ),
     Role(
-        code="tropos.admin",
-        name="Tropos Admin",
+        code="tropos.viewer",
+        name="Tropos Viewer",
         policies=(
-            # "tropos.az.full",
-            # "tropos.device.read_only",
-            "tropos.full",
+            "tropos.region.read_only",
+            "tropos.az.read_only",
+            "tropos.device.read_only",
+            "tropos.building.read_only"
         ),
     ),
 ]

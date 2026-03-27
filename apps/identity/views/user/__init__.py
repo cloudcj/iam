@@ -3,6 +3,8 @@ from .create import CreateUserView
 from .list import ListUsersView
 from .delete import DeleteUserView
 from .update_full import UpdateUserFullView
+from .detail import UserDetailView
+from .reset_password import ResetUserPasswordView
 
 # from ..me.me import MeView
 # from .update_basic import  UpdateUserBasicView

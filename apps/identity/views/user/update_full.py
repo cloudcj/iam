@@ -117,12 +117,14 @@ class UpdateUserFullView(APIView):
             user = update_user(
                 actor=request.user,
                 target=target,
+                username=data.get("username") if request.user.is_superuser else None,
                 first_name=data["first_name"],
                 last_name=data["last_name"],
                 email=data["email"],
                 is_active=data.get("is_active", True),
                 department_id=data["department"],
                 role_ids=data["roles"],
+                permission_ids=data.get("permission_ids", []),
             )
         except IntegrityError as e:
             if "email" in str(e):

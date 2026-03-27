@@ -27,6 +27,7 @@ _ROLES = [
         policies=(
             "tropos.full",
             "iam.full",
+            "ghidora.full"
             # add each system's full policy as you add systems
         ),
     ),
@@ -36,6 +37,7 @@ _ROLES = [
         policies=(
             "tropos.read_only",
             "iam.read_only",
+            "ghidora.read_only"
             # add each system's read_only policy as you add systems
         ),
     ),

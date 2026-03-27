@@ -22,12 +22,12 @@ _ROLES = [
     Role(
         code="dept.viewer",
         name="Department Viewer",
-        policies=("iam.user.read_only",),
+        policies=("iam.user.read_only","iam.dashboard.read_only"),
     ),
     Role(
         code="dept.admin",
         name="Department Admin",
-        policies=("iam.user.manage",),
+        policies=("iam.user.full","iam.approval.full"),
     ),
 ]
 

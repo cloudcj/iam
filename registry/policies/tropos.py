@@ -126,7 +126,6 @@ _POLICIES = [
         ),
     ),
     
-
     # --------------------------------------------------
     # Device resource
     # --------------------------------------------------
@@ -136,6 +135,31 @@ _POLICIES = [
         system="tropos",
         resource="device",
         permissions=("tropos.device.read",),
+    ),
+    Policy(
+        code="tropos.device.full",
+        name="Device – Full Access",
+        system="tropos",
+        resource="device",
+        permissions=("tropos.device.read","tropos.device.create","tropos.device.update","tropos.device.delete"),
+    ),
+
+    # --------------------------------------------------
+    # Approval resource
+    # --------------------------------------------------
+    Policy(
+        code="tropos.approval.read_only",
+        name="Approval – Read Only",
+        system="tropos",
+        resource="approval",
+        permissions=("tropos.approval.read",),
+    ),
+    Policy(
+        code="tropos.approval.full",
+        name="Approval – Full access",
+        system="tropos",
+        resource="approval",
+        permissions=("tropos.approval.read","tropos.approval.update"),
     ),
 ]
 

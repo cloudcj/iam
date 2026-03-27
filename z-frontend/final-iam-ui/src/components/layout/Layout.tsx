@@ -1,21 +1,21 @@
-import { AppShell, NavLink, Text, Group, Box } from '@mantine/core'
+import { AppShell, NavLink, Text, Box } from '@mantine/core'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   IconDashboard,
   IconUsers,
-  IconShield,
-  IconKey,
   IconBuilding,
   IconLogout,
+  IconClipboardCheck,
+  IconUserCircle,
 } from '@tabler/icons-react'
 import { useLogoutMutation } from '../../services/iamApi'
 
 const navItems = [
   { label: 'Dashboard', icon: IconDashboard, path: '/' },
   { label: 'Users', icon: IconUsers, path: '/users' },
-  { label: 'Roles', icon: IconShield, path: '/roles' },
-  { label: 'Permissions', icon: IconKey, path: '/permissions' },
   { label: 'Departments', icon: IconBuilding, path: '/departments' },
+  { label: 'Approval Management', icon: IconClipboardCheck, path: '/approvals' },
+  { label: 'Profile', icon: IconUserCircle, path: '/profile' },
 ]
 
 export default function Layout() {
@@ -30,28 +30,28 @@ export default function Layout() {
 
   return (
     <AppShell navbar={{ width: 240, breakpoint: 'sm' }} padding="md">
-      <AppShell.Navbar p="md">
+      <AppShell.Navbar p="md" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Box mb="lg">
           <Text fw={700} size="lg">IAM Admin</Text>
         </Box>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            label={item.label}
-            leftSection={<item.icon size={18} />}
-            active={location.pathname === item.path}
-            onClick={() => navigate(item.path)}
-            mb={4}
-          />
-        ))}
-        <Box mt="auto">
-          <NavLink
-            label="Logout"
-            leftSection={<IconLogout size={18} />}
-            onClick={handleLogout}
-            color="red"
-          />
+        <Box style={{ flex: 1 }}>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              label={item.label}
+              leftSection={<item.icon size={18} />}
+              active={location.pathname === item.path}
+              onClick={() => navigate(item.path)}
+              mb={4}
+            />
+          ))}
         </Box>
+        <NavLink
+          label="Logout"
+          leftSection={<IconLogout size={18} />}
+          onClick={handleLogout}
+          color="red"
+        />
       </AppShell.Navbar>
       <AppShell.Main>
         <Outlet />

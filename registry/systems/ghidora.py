@@ -5,6 +5,6 @@ GHIDORA_SERVICE = make_system(
     label="Ghidora",
     resources={
         "dashboard": ("Dashboard", ["read", "create", "update", "delete"]),
-        "summary":   ("Summary",   ["read", "create", "update", "delete"]),
+        "approval":  ("Approval",   ["read","update"]),
     },
 )

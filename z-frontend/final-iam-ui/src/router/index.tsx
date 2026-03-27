@@ -1,12 +1,12 @@
 import { createBrowserRouter } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
-import Layout from '../components/layout/layout'
+import Layout from '../components/layout/Layout'
 import LoginPage from '../pages/LoginPage'
 import DashboardPage from '../pages/DashboardPage'
 import UsersPage from '../pages/UsersPage'
-import RolesPage from '../pages/RolesPage'
-import PermissionsPage from '../pages/PermissionsPage'
 import DepartmentsPage from '../pages/DepartmentsPage'
+import ApprovalPage from '../pages/ApprovalPage'
+import ProfilePage from '../pages/ProfilePage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -20,9 +20,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'users', element: <UsersPage /> },
-      { path: 'roles', element: <RolesPage /> },
-      { path: 'permissions', element: <PermissionsPage /> },
       { path: 'departments', element: <DepartmentsPage /> },
+      { path: 'approvals', element: <ApprovalPage /> },
+      { path: 'profile', element: <ProfilePage /> },
     ],
   },
 ])

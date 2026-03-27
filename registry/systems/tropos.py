@@ -48,5 +48,6 @@ TROPOS_SERVICE = make_system(
         "az":     ("Availability Zones",  ["read", "create", "update", "delete"]),
         "building":("Building",           ["read", "create", "update", "delete"]),
         "device": ("Devices",             ["read", "create", "update", "delete"]),
+        "approval": ("Approval",          ["read", "update"]),
     },
 )

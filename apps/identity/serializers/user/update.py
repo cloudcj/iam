@@ -57,6 +57,7 @@ class UpdateUserRolesSerializer(serializers.Serializer):
 #         return value
 
 class UpdateUserSerializer(serializers.Serializer):
+    username = serializers.CharField(required=False, allow_null=True)
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     email = serializers.EmailField()
@@ -66,6 +67,20 @@ class UpdateUserSerializer(serializers.Serializer):
         required=True,
         allow_empty=False,
     )
+    permission_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_empty=True,
+        default=list,
+    )
+
+    def validate_username(self, value):
+        if not value:
+            return value
+        user_id = self.context.get("user_id")
+        if User.objects.filter(username=value).exclude(id=user_id).exists():
+            raise serializers.ValidationError("A user with that username already exists.")
+        return value
 
     def validate_email(self, value):
         user_id = self.context.get("user_id")

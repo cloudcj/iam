@@ -39,7 +39,7 @@ urlpatterns = [
     path("api/v1/me/", include(me_urlpatterns)),
 
     # Departments
-    path("api/v1/identity/", include("apps.department.urls")),
+    path("api/v1/department/", include("apps.department.urls")),
 
     # Roles
     path("api/v1/access/", include("apps.access.urls")),

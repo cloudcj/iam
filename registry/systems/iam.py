@@ -50,6 +50,7 @@ IAM_SERVICE = make_system(
     resources={
         "dashboard": ("Dashboard", [
             "read",
+            "create",
             "update",
             "delete"
         ]),
@@ -63,10 +64,17 @@ IAM_SERVICE = make_system(
             "update_dept",
             "assign_policy",
             "remove_policy",
+            "reset_password",
         ]),
         "department": ("Departments", [
             "read",
-            "update_systems",
+            "create",
+            "update",
+            "delete"
+        ]),
+        "approval": ("Approval Management", [
+            "read",
+            "update",
         ]),
     },
 )

@@ -1,0 +1,66 @@
+from django.contrib.auth import get_user_model
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import serializers, status
+
+from apps.authn.authentication import IAMAuthentication
+from apps.authz.permissions import HasPermission
+from apps.common.constants.permission_codes import IAMPermissions
+from apps.common.constants import RoleCodes
+from apps.common.helpers.authz.role_helpers import has_role
+
+User = get_user_model()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(min_length=8)
+    confirm_password = serializers.CharField()
+
+    def validate(self, data):
+        if data["new_password"] != data["confirm_password"]:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+        return data
+
+
+class ResetUserPasswordView(APIView):
+    authentication_classes = [IAMAuthentication]
+    permission_classes = [HasPermission]
+    required_permission = IAMPermissions.USER_RESET_PASSWORD
+
+    def post(self, request, user_id):
+        try:
+            target = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        actor = request.user
+
+        # Only superuser can reset another superuser's password
+        if target.is_superuser and not actor.is_superuser:
+            return Response(
+                {"detail": "You do not have permission to reset a superuser's password."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Platform admin cannot reset another platform admin's password
+        if not actor.is_superuser and has_role(actor, RoleCodes.PLATFORM_ADMIN) and has_role(target, RoleCodes.PLATFORM_ADMIN):
+            return Response(
+                {"detail": "You do not have permission to reset another platform admin's password."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Department admins can only reset passwords for users in their own department
+        if not actor.is_superuser and not has_role(actor, RoleCodes.PLATFORM_ADMIN):
+            if target.department_id != actor.department_id:
+                return Response(
+                    {"detail": "You can only reset passwords for users in your department."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        target.set_password(serializer.validated_data["new_password"])
+        target.save(update_fields=["password"])
+
+        return Response({"detail": "Password reset successfully."})

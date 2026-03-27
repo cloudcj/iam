@@ -13,6 +13,31 @@ export interface User {
   roles: string[]
 }
 
+export interface UserDetail {
+  id: string
+  username: string
+  first_name: string
+  last_name: string
+  email: string
+  is_active: boolean
+  department: string | null
+  roles: string[]
+  permission_codes: string[]
+  extra_permission_ids: string[]  // source=direct permission IDs
+}
+
+
+export interface UpdateUserPayload {
+  username?: string
+  first_name: string
+  last_name: string
+  email: string
+  department: string
+  roles: string[]
+  permission_ids?: string[]
+}
+
+
 
 export interface CreateUserPayload {
   username: string
@@ -30,9 +55,13 @@ export interface CreateUserPayload {
 
 export interface Permission {
   id: string
-  codename: string
+  code: string
+  system: string
+  resource: string
+  action: string
   description: string
 }
+
 
 export interface Me {
   id: string
@@ -80,5 +109,6 @@ export interface Policy {
   system: string
   resource: string
   description: string
+  permission_codes: string[]
 }
 

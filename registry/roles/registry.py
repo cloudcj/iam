@@ -8,5 +8,4 @@ ROLES_REGISTRY = {
     **IAM_ROLES,
     **GHIDORA_ROLES,
     **GLOBAL_ROLES
-
 }

@@ -25,32 +25,52 @@ _POLICIES = [
     ),
 
     # --------------------------------------------------
-    # User resource (used by dept roles)
+    # Dashboard resource
     # --------------------------------------------------
-    # Policy(
-    #     code="iam.user.read_only",
-    #     name="IAM Users – Read Only",
-    #     system="iam",
-    #     resource="user",
-    #     permissions=("iam.user.read",),
-    # ),
-    # Policy(
-    #     code="iam.user.manage",
-    #     name="IAM Users – Manage",
-    #     system="iam",
-    #     resource="user",
-    #     permissions=(
-    #         "iam.user.read",
-    #         "iam.user.create",
-    #         "iam.user.update",
-    #         "iam.user.delete",
-    #         "iam.user.update_role",
-    #         "iam.user.update_policy",
-    #         "iam.user.assign_policy",
-    #         "iam.user.remove_policy",
-    #         # no update_dept — dept.admin cannot move users between departments
-    #     ),
-    # ),
+    Policy(
+        code="ghidora.dashboard.read_only",
+        name="Dashboard – Read Only",
+        system="ghidora",
+        resource="dashboard",
+        permissions=(
+            "ghidora.dashboard.read",
+        ),
+    ),
+    Policy(
+        code="ghidora.dashboard.full",
+        name="Dashboard – Full access",
+        system="ghidora",
+        resource="dashboard",
+        permissions=(
+            "ghidora.dashboard.read",
+            "ghidora.dashboard.create",
+            "ghidora.dashboard.update",
+            "ghidora.dashboard.delete",
+        ),
+    ),
+
+    # --------------------------------------------------
+    # Approval resource
+    # --------------------------------------------------
+    Policy(
+        code="ghidora.approval.read_only",
+        name="Approval – Read Only",
+        system="ghidora",
+        resource="approval",
+        permissions=(
+            "ghidora.approval.read",
+        ),
+    ),
+    Policy(
+        code="ghidora.approval.full",
+        name="Approval – Full access",
+        system="ghidora",
+        resource="approval",
+        permissions=(
+            "ghidora.approval.read",
+            "ghidora.approval.update",
+        ),
+    ),
 ]
 
 GHIDORA_POLICIES = {p.code: p for p in _POLICIES}
