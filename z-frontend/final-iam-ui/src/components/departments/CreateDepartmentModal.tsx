@@ -20,7 +20,7 @@ export default function CreateDepartmentModal({ opened, onClose }: Props) {
     ...new Set(
       roles
         ?.map((r) => r.system)
-        .filter((s) => !EXCLUDED_SYSTEMS.has(s)) ?? []
+        .filter((s) => typeof s === "string" && s.length > 0 && !EXCLUDED_SYSTEMS.has(s)) ?? []
     ),
   ].map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))
 

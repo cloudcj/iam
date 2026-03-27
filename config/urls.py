@@ -43,6 +43,9 @@ urlpatterns = [
 
     # Roles
     path("api/v1/access/", include("apps.access.urls")),
+
+    #
+    path("api/v1/audit/", include("apps.audit.urls")),
 ]
 
 

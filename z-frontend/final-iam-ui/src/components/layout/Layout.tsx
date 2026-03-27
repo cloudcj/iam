@@ -7,6 +7,7 @@ import {
   IconLogout,
   IconClipboardCheck,
   IconUserCircle,
+  IconShieldCheck 
 } from '@tabler/icons-react'
 import { useLogoutMutation } from '../../services/iamApi'
 
@@ -16,6 +17,7 @@ const navItems = [
   { label: 'Departments', icon: IconBuilding, path: '/departments' },
   { label: 'Approval Management', icon: IconClipboardCheck, path: '/approvals' },
   { label: 'Profile', icon: IconUserCircle, path: '/profile' },
+  { label: 'Audit Logs', icon: IconShieldCheck, path: '/audit' },
 ]
 
 export default function Layout() {

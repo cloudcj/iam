@@ -9,12 +9,25 @@ from apps.common.constants.permission_codes import IAMPermissions
 from apps.common.constants import RoleCodes
 from apps.common.helpers.authz.role_helpers import has_role
 
+from apps.audit.mixins import AuditMixin
+from apps.audit.models import AuditLog
+
 from ...serializers.user.reset_password import ResetPasswordSerializer
 
 User = get_user_model()
 
 
-class ResetUserPasswordView(APIView):
+class ResetUserPasswordView(AuditMixin, APIView):
+
+    audit_action = AuditLog.Action.USER_RESET_PASSWORD
+    audit_target_type = "user"
+
+    def get_audit_target_id(self, request, response):
+        return self.kwargs.get("user_id")
+
+    def get_audit_detail(self, request, response):
+        return {"reset_by": request.user.username}
+
     authentication_classes = [IAMAuthentication]
     permission_classes = [HasPermission]
     required_permission = IAMPermissions.USER_RESET_PASSWORD

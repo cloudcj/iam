@@ -24,6 +24,10 @@ def issue_user_tokens(*, user):
     access["typ"] = "access"
     access["is_superuser"] = user.is_superuser
 
+    # ✅ Roles (always embedded)
+    role_codes = list(user.user_roles.select_related("role").values_list("role__code", flat=True))
+    access["roles"] = sorted(role_codes)
+
     # ✅ Superuser carries empty permissions — bypasses checks locally
     if user.is_superuser:
         access["permissions"] = []
@@ -74,6 +78,10 @@ def refresh_tokens(*, refresh_token: str):
     new_access["username"] = user.username
     new_access["typ"] = "access"
     new_access["is_superuser"] = user.is_superuser 
+
+    # ✅ Roles (always embedded)
+    role_codes = list(user.user_roles.select_related("role").values_list("role__code", flat=True))
+    new_access["roles"] = sorted(role_codes)
 
     # ✅ Re-embed fresh permissions (picks up any changes since last login)
     if user.is_superuser:

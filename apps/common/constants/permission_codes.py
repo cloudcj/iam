@@ -12,3 +12,5 @@ class IAMPermissions:
     DEPARTMENT_CREATE  = "iam.department.create"
     DEPARTMENT_UPDATE  = "iam.department.update"
     DEPARTMENT_DELETE  = "iam.department.delete"
+
+    AUDIT_READ = "iam.audit.read"

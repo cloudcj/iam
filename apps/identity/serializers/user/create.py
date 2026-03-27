@@ -38,12 +38,6 @@ class UserCreateSerializer(serializers.Serializer):
         required=True,
         allow_empty=False,
     )
-    permissions = serializers.ListField(
-        child=serializers.UUIDField(),
-        required=False,
-        allow_empty=True,
-        default=list,
-    )
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():

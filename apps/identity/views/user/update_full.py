@@ -98,8 +98,20 @@ from apps.identity.services.user.update.full import update_user
 from apps.authz.permissions import HasPermission
 from apps.common.constants.permission_codes import IAMPermissions
 
+from apps.audit.mixins import AuditMixin
+from apps.audit.models import AuditLog
 
-class UpdateUserFullView(APIView):
+class UpdateUserFullView(AuditMixin, APIView):
+
+    audit_action = AuditLog.Action.USER_UPDATE
+    audit_target_type = "user"
+
+    def get_audit_target_id(self, request, response):
+        return self.kwargs.get("user_id")
+
+    def get_audit_detail(self, request, response):
+        return {"username": response.data.get("username")}
+    
     permission_classes = [IsAuthenticated, HasPermission]
     required_permission = IAMPermissions.USER_UPDATE
 

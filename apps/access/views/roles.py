@@ -32,8 +32,7 @@ class ListRolesView(APIView):
                 "id": str(r.id),
                 "code": r.code,
                 "name": r.name,
-                # "system": r.code.split(".")[0],
-                "system": systems[0] if len(systems) == 1 else systems,
+                "system": systems[0] if systems else r.code.split(".")[0],
                 "policies": policies,
             })
         return Response(data)

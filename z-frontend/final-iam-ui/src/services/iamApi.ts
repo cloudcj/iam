@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query'
-import type { User, UserDetail, Role, Permission, Policy, Department, Me, LoginRequest, CreateUserPayload, UpdateUserPayload } from '../types'
+import type { User, UserDetail, Role, Permission, Policy, Department, Me, LoginRequest, CreateUserPayload, UpdateUserPayload, AuditLogParams, AuditLogResponse  } from '../types'
 
 const getCsrfToken = () =>
   document.cookie
@@ -48,7 +48,7 @@ const baseQueryWithReauth = async (
 export const iamApi = createApi({
   reducerPath: 'iamApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['User', 'Role', 'Permission', 'Department', 'Me'],
+  tagTypes: ['User', 'Role', 'Permission', 'Department', 'Me', 'AuditLog'],
   endpoints: (builder) => ({
 
     // Auth
@@ -148,6 +148,13 @@ export const iamApi = createApi({
       query: (id) => ({ url: `/department/${id}/delete/`, method: 'DELETE' }),
       invalidatesTags: ['Department'],
     }),
+
+    // Audit
+    getAuditLogs: builder.query<AuditLogResponse, AuditLogParams>({
+      query: (params) => ({ url: '/audit/', params }),
+      providesTags: ['AuditLog'],
+    }),
+
   }),
 })
 
@@ -172,5 +179,6 @@ export const {
   useUpdateProfileMutation,
   useChangePasswordMutation,
   useResetUserPasswordMutation,
+  useGetAuditLogsQuery 
 } = iamApi
 

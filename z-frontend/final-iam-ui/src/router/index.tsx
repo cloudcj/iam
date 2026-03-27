@@ -7,6 +7,7 @@ import UsersPage from '../pages/UsersPage'
 import DepartmentsPage from '../pages/DepartmentsPage'
 import ApprovalPage from '../pages/ApprovalPage'
 import ProfilePage from '../pages/ProfilePage'
+import AuditLogPage from '../pages/AuditLogPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: 'departments', element: <DepartmentsPage /> },
       { path: 'approvals', element: <ApprovalPage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'audit', element: <AuditLogPage /> },
     ],
   },
 ])

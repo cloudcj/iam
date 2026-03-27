@@ -13,13 +13,11 @@ class MeView(APIView):
         token = request.auth
 
         if user.is_superuser:
-            # Superuser — is_superuser flag handles all frontend checks
-            # No need to load or return permissions
             permission_codes = set()
         else:
-            # Regular user — read permissions from JWT (no DB hit)
             permission_codes = set(token.get("permissions", []))
 
+        role_codes = token.get("roles", [])
         systems = sorted({code.split(".")[0] for code in permission_codes})
 
         return Response({
@@ -29,6 +27,7 @@ class MeView(APIView):
             "last_name": user.last_name,
             "email": user.email,
             "is_superuser": user.is_superuser,
+            "roles": role_codes,
             "department": {
                 "code": user.department.code,
                 "name": user.department.name,

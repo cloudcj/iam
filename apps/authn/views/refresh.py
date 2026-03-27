@@ -14,6 +14,9 @@ from apps.authn.tokens.cookies import (
     REFRESH_COOKIE_NAME,
 )
 
+from apps.authn.authentication import IAMAuthentication
+from apps.audit.services.services import log_action
+from apps.audit.models import AuditLog
 
 @method_decorator(csrf_protect, name="dispatch")
 class RefreshTokenView(APIView):
@@ -31,23 +34,35 @@ class RefreshTokenView(APIView):
         try:
             tokens = refresh_tokens(refresh_token=refresh_token)
         except AuthenticationFailed:
-            # 🔥 refresh already rotated or invalid
+            log_action(
+                action=AuditLog.Action.AUTH_TOKEN_REFRESH,
+                status=AuditLog.Status.FAILURE,
+                detail={"reason": "Invalid or rotated refresh token"},
+                request=request,
+            )
             response = Response(status=status.HTTP_401_UNAUTHORIZED)
             clear_auth_cookies(response)
             return response
 
-        response = Response(
-            {"detail": "Token refreshed"},
-            status=status.HTTP_200_OK,
+        actor = None
+        try:
+            user, _ = IAMAuthentication().authenticate(request)
+            actor = user
+        except Exception:
+            pass
+
+        log_action(
+            actor=actor,
+            action=AuditLog.Action.AUTH_TOKEN_REFRESH,
+            target_id=actor.id if actor else None,
+            target_type="user" if actor else "",
+            request=request,
         )
 
-        set_auth_cookies(
-            response,
-            access=tokens["access"],
-            refresh=tokens["refresh"],  # REQUIRED with rotation ON
-        )
-
+        response = Response({"detail": "Token refreshed"}, status=status.HTTP_200_OK)
+        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
         return response
+
 
 
 

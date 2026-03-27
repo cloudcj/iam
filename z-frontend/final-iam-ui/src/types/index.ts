@@ -47,7 +47,6 @@ export interface CreateUserPayload {
   last_name: string
   department?: string   // UUID
   roles: string[]       // UUID[]
-  permissions?: string[]
 }
 
 
@@ -70,12 +69,13 @@ export interface Me {
   first_name: string
   last_name: string
   is_superuser: boolean
+  roles: string[]         // ← role codes e.g. ["platform.admin", "tropos.admin"]
   department: {
     code: string
     name: string
   }
   systems: string[]
-  permissions: string[]   // ← permission codes, not roles
+  permissions: string[]   // ← permission codes
 }
 
 
@@ -112,3 +112,33 @@ export interface Policy {
   permission_codes: string[]
 }
 
+// Audit logs
+
+export interface AuditLog {
+  id: string
+  actor: string | null
+  actor_name: string | null
+  department: string | null
+  action: string
+  target_id: string | null
+  target_type: string
+  status: "success" | "failure"
+  detail: Record<string, any>
+  ip_address: string | null
+  timestamp: string
+}
+
+export interface AuditLogParams {
+  action?: string
+  status?: string
+  target_type?: string
+  date_from?: string
+  date_to?: string
+  limit?: number
+  offset?: number
+}
+
+export interface AuditLogResponse {
+  count: number
+  results: AuditLog[]
+}

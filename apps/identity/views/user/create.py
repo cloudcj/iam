@@ -99,10 +99,23 @@ from apps.identity.services.user.create import create_user
 from apps.authz.permissions import HasPermission
 from apps.common.constants.permission_codes import IAMPermissions
 
+from apps.audit.mixins import AuditMixin
+from apps.audit.models import AuditLog
 
-class CreateUserView(APIView):
+class CreateUserView(AuditMixin, APIView):
+    audit_action = AuditLog.Action.USER_CREATE
+    audit_target_type = "user"
+
+    def get_audit_target_id(self, request, response):
+        return response.data.get("id") if response.status_code == 201 else None
+
+    def get_audit_detail(self, request, response):
+        return {"username": request.data.get("username")}
+    
+    ###########################################################
     permission_classes = [IsAuthenticated, HasPermission]
     required_permission = IAMPermissions.USER_CREATE
+
 
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)

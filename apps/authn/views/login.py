@@ -54,6 +54,8 @@ from apps.authn.services.auth_service import login
 from apps.authn.tokens.cookies import set_auth_cookies
 from apps.authn.throttles import LoginRateThrottle
 
+from apps.audit.services.services import log_action
+from apps.audit.models import AuditLog
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class LoginView(APIView):
@@ -62,27 +64,33 @@ class LoginView(APIView):
     throttle_classes = [LoginRateThrottle]   # ← add this line
 
     def post(self, request):
+        username = request.data.get("username", "")
+
         try:
             user, tokens = login(
                 request=request,
-                username=request.data.get("username"),
+                username=username,
                 password=request.data.get("password"),
             )
         except PermissionDenied as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_401_UNAUTHORIZED,
+            log_action(
+                action=AuditLog.Action.AUTH_LOGIN_FAILED,
+                status=AuditLog.Status.FAILURE,
+                detail={"username": username, "reason": str(exc)},
+                request=request,
             )
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
 
-        response = Response(
-            {"detail": "Login successful"},
-            status=status.HTTP_200_OK,
+        log_action(
+            actor=user,
+            action=AuditLog.Action.AUTH_LOGIN,
+            target_id=user.id,
+            target_type="user",
+            detail={"username": user.username},
+            request=request,
         )
 
-        set_auth_cookies(
-            response,
-            access=tokens["access"],
-            refresh=tokens["refresh"],
-        )
-
+        response = Response({"detail": "Login successful"}, status=status.HTTP_200_OK)
+        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
         return response
+

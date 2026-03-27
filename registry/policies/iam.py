@@ -67,10 +67,10 @@ _POLICIES = [
             "iam.user.create",
             "iam.user.update",
             "iam.user.delete",
-            "iam.user.update_role",
-            "iam.user.update_policy",
-            "iam.user.assign_policy",
-            "iam.user.remove_policy",
+            # "iam.user.update_role",
+            # "iam.user.update_policy",
+            # "iam.user.assign_policy",
+            # "iam.user.remove_policy",
             "iam.user.reset_password",
             # no update_dept — dept.admin cannot move users between departments
         ),
@@ -118,7 +118,16 @@ _POLICIES = [
             "iam.approval.update",
         ),
     ),
-    
+    # --------------------------------------------------
+    # Audit log resource (used by dept roles)
+    # --------------------------------------------------
+    Policy(
+        code="iam.audit.read_only",
+        name="IAM Audit Logs – Read Only",
+        system="iam",
+        resource="audit",
+        permissions=("iam.audit.read",),
+    )
 ]
 
 IAM_POLICIES = {p.code: p for p in _POLICIES}

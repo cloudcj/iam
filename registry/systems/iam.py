@@ -72,6 +72,9 @@ IAM_SERVICE = make_system(
             "read",
             "update",
         ]),
+        "audit": ("Audit logs", [
+            "read",
+        ]),
     },
 )
 

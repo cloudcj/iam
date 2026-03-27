@@ -76,8 +76,18 @@ from apps.identity.services.user.delete import delete_user
 from apps.authz.permissions import HasPermission
 from apps.common.constants.permission_codes import IAMPermissions
 
+from apps.audit.mixins import AuditMixin
+from apps.audit.models import AuditLog
 
-class DeleteUserView(APIView):
+
+class DeleteUserView(AuditMixin, APIView):
+   
+    audit_action = AuditLog.Action.USER_DELETE
+    audit_target_type = "user"
+
+    def get_audit_target_id(self, request, response):
+        return self.kwargs.get("user_id")
+
     permission_classes = [IsAuthenticated, HasPermission]
     required_permission = IAMPermissions.USER_DELETE
 

@@ -43,7 +43,7 @@ export default function EditUserModal({ user, onClose }: Props) {
   const [updateUser, { isLoading }] = useUpdateUserMutation()
 
   const isSuperuser = me?.is_superuser ?? false
-  const isPlatformAdmin = !isSuperuser && (me?.permissions?.includes("iam.user.update_dept") ?? false)
+  const isPlatformAdmin = !isSuperuser && (me?.roles?.includes("platform.admin") ?? false)
   const isDeptAdmin = !isSuperuser && !isPlatformAdmin
   const canAssignDirect = isSuperuser || isPlatformAdmin
 

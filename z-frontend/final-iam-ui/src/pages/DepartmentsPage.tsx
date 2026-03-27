@@ -96,7 +96,7 @@ export default function DepartmentsPage() {
             textAlign: "right",
             render: (dept) => (
               <Group gap={4} justify="flex-end">
-                {canEdit && dept.code !== "GLOBAL" && (
+                {canEdit && (dept.code !== "GLOBAL" || me?.is_superuser) && (
                   <ActionIcon
                     size="sm"
                     variant="subtle"
