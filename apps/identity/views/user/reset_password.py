@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers, status
+from rest_framework import status
 
 from apps.authn.authentication import IAMAuthentication
 from apps.authz.permissions import HasPermission
@@ -9,17 +9,9 @@ from apps.common.constants.permission_codes import IAMPermissions
 from apps.common.constants import RoleCodes
 from apps.common.helpers.authz.role_helpers import has_role
 
+from ...serializers.user.reset_password import ResetPasswordSerializer
+
 User = get_user_model()
-
-
-class ResetPasswordSerializer(serializers.Serializer):
-    new_password = serializers.CharField(min_length=8)
-    confirm_password = serializers.CharField()
-
-    def validate(self, data):
-        if data["new_password"] != data["confirm_password"]:
-            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
-        return data
 
 
 class ResetUserPasswordView(APIView):

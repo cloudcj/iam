@@ -20,12 +20,12 @@ from .schema import Role
 
 _ROLES = [
     Role(
-        code="dept.viewer",
+        code="department.viewer",
         name="Department Viewer",
         policies=("iam.user.read_only","iam.dashboard.read_only"),
     ),
     Role(
-        code="dept.admin",
+        code="department.admin",
         name="Department Admin",
         policies=("iam.user.full","iam.approval.full"),
     ),

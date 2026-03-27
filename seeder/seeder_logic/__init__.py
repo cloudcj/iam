@@ -4,5 +4,5 @@ from .seed_permissions import seed_permissions
 from .seed_policies import seed_policies
 from .seed_policy_permissions import seed_policy_permissions
 from .seed_role_policies import seed_role_policies
-from .seed_superadmin import seed_superadmin
+from .seed_superuser import seed_superadmin
 from .seed_roles import seed_roles

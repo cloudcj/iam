@@ -25,18 +25,18 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-class UpdateUserBasicSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
-    is_active = serializers.BooleanField(required=False)
+# class UpdateUserBasicSerializer(serializers.Serializer):
+#     email = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
+#     is_active = serializers.BooleanField(required=False)
 
-class UpdateUserDepartmentSerializer(serializers.Serializer):
-    department = serializers.CharField()
+# class UpdateUserDepartmentSerializer(serializers.Serializer):
+#     department = serializers.CharField()
 
-class UpdateUserRolesSerializer(serializers.Serializer):
-    roles = serializers.ListField(
-        child=serializers.CharField(),
-        allow_empty=False,
-    )
+# class UpdateUserRolesSerializer(serializers.Serializer):
+#     roles = serializers.ListField(
+#         child=serializers.CharField(),
+#         allow_empty=False,
+#     )
 
 # class UpdateUserSerializer(serializers.Serializer):
 #     first_name = serializers.CharField()
