@@ -23,6 +23,38 @@ All endpoints (except `/auth/csrf/` and `/auth/login/`) require a valid JWT pass
 
 ---
 
+## Role Object Shape (`RoleRef`)
+
+Several endpoints return role objects using this shared shape:
+
+```json
+{
+  "id": "uuid",
+  "code": "department.admin",
+  "name": "Department Admin",
+  "system": "department",
+  "grants_systems": ["tropos", "ghidora"]
+}
+```
+
+| Field | Present on | Description |
+|---|---|---|
+| `id` | Always | Role UUID |
+| `code` | Always | Dot-separated code e.g. `tropos.admin` |
+| `name` | Always | Human-readable name |
+| `system` | Always | First segment of `code` e.g. `tropos` |
+| `grants_systems` | Management roles only | Product systems this role grants access to |
+| `policies` | Form-options response only | Policies attached to this role (for UI preview) |
+
+**Role tiers:**
+
+| Tier | Systems | Examples |
+|---|---|---|
+| Management | `platform`, `department` | `platform.admin`, `department.admin` |
+| System | Everything else | `tropos.admin`, `ghidora.viewer` |
+
+---
+
 ## 1. Authentication
 
 ### Get CSRF Token
@@ -232,10 +264,28 @@ GET /api/v1/identity/users/
       "code": "string",
       "name": "string"
     },
-    "roles": ["role.code", "..."]
+    "management_role": {
+      "id": "uuid",
+      "code": "department.admin",
+      "name": "Department Admin",
+      "system": "department",
+      "grants_systems": ["tropos"]
+    },
+    "system_roles": [
+      {
+        "id": "uuid",
+        "code": "tropos.admin",
+        "name": "Tropos Admin",
+        "system": "tropos"
+      }
+    ]
   }
 ]
 ```
+
+> `management_role` — the user's single management-tier role (`platform.*` or `department.*`), or `null` if none.
+> `system_roles` — all product-system roles assigned to the user.
+> `management_role.grants_systems` — list of product systems the management role grants access to (empty for `department.*` roles since the department's `allowed_systems` controls that).
 
 ---
 
@@ -254,15 +304,35 @@ GET /api/v1/identity/users/<user_id>/
   "last_name": "string",
   "email": "string",
   "is_active": true,
-  "department": "uuid",
-  "roles": ["uuid", "..."],
-  "permission_codes": ["iam.user.read", "..."],
+  "department": {
+    "id": "uuid",
+    "code": "string",
+    "name": "string"
+  },
+  "management_role": {
+    "id": "uuid",
+    "code": "department.admin",
+    "name": "Department Admin",
+    "system": "department",
+    "grants_systems": ["tropos"]
+  },
+  "system_roles": [
+    {
+      "id": "uuid",
+      "code": "tropos.admin",
+      "name": "Tropos Admin",
+      "system": "tropos"
+    }
+  ],
+  "permission_codes": ["iam.user.read", "tropos.region.read", "..."],
   "extra_permission_ids": ["uuid", "..."]
 }
 ```
 
-> `permission_codes` — all resolved permission codes (from roles + direct assignments)
-> `extra_permission_ids` — IDs of permissions assigned directly to the user (not via role)
+> `management_role` — the user's single management-tier role, or `null` if none.
+> `system_roles` — all product-system roles assigned to the user.
+> `permission_codes` — all resolved permission codes (from roles + direct assignments).
+> `extra_permission_ids` — IDs of permissions assigned directly to the user that are **not** covered by any policy (i.e. truly individual permissions).
 
 ---
 
@@ -540,7 +610,13 @@ GET /api/v1/access/roles/
 ```
 No special permission required — authenticated only.
 
-Returns all roles with their associated policies and permission codes. Used by the frontend to build role dropdowns and compute permission presets.
+Returns all roles with their associated policies and permission codes.
+
+**Query Parameters:**
+
+| Param | Type | Description |
+|---|---|---|
+| `system` | string | Filter by system prefix (e.g. `?system=tropos`). Omit for all roles. |
 
 **Response `200 OK`:**
 ```json
@@ -564,6 +640,87 @@ Returns all roles with their associated policies and permission codes. Used by t
   }
 ]
 ```
+
+---
+
+### Get Role Form Options
+```
+GET /api/v1/access/roles/form-options/
+```
+No special permission required — authenticated only.
+
+Returns the scoped set of roles for building the Create/Edit User form dropdowns. The response is **pre-filtered** based on the requesting user's permission level and the selected department. The frontend does not need to filter or categorize roles itself.
+
+**Query Parameters:**
+
+| Param | Type | Description |
+|---|---|---|
+| `department` | uuid | The department being assigned to the new/edited user. Required to get system roles. |
+
+**Scoping rules for management roles:**
+
+| Requesting User | GLOBAL dept selected | Non-GLOBAL dept selected |
+|---|---|---|
+| Superuser | `platform.*` only | `platform.*` + `department.*` |
+| Platform Admin | *(none)* | `department.*` only |
+| Dept Admin | *(none)* | *(none)* |
+
+**Response `200 OK`:**
+```json
+{
+  "management_roles": [
+    {
+      "id": "uuid",
+      "code": "department.admin",
+      "name": "Department Admin",
+      "grants_systems": ["tropos"],
+      "policies": [
+        {
+          "id": "uuid",
+          "code": "iam.dept-admin.full",
+          "name": "IAM Dept Admin – Full",
+          "system": "iam",
+          "resource": "*",
+          "description": "",
+          "permission_codes": ["iam.user.read", "iam.user.create", "..."]
+        }
+      ]
+    }
+  ],
+  "system_roles": {
+    "tropos": [
+      {
+        "id": "uuid",
+        "code": "tropos.admin",
+        "name": "Tropos Admin",
+        "policies": [
+          {
+            "id": "uuid",
+            "code": "tropos.full",
+            "name": "Tropos – Full Access",
+            "system": "tropos",
+            "resource": "*",
+            "description": "",
+            "permission_codes": ["tropos.region.read", "tropos.region.create", "..."]
+          }
+        ]
+      },
+      {
+        "id": "uuid",
+        "code": "tropos.viewer",
+        "name": "Tropos Viewer",
+        "policies": ["..."]
+      }
+    ],
+    "ghidora": ["..."]
+  }
+}
+```
+
+> `management_roles` — roles the current actor is allowed to assign, pre-filtered by their permission level and department type.
+> `system_roles` — all product-system roles, grouped by system name. All systems are included; the frontend uses the selected department's `allowed_systems` or `grants_systems` from the selected management role to show only relevant systems.
+> `grants_systems` — on management roles, lists which product systems are unlocked by that role. Empty for `department.*` roles (those defer to the department's own `allowed_systems`).
+> `policies` — included on all roles for UI policy-preview cards. Contains `permission_codes` for computing permission diffs.
 
 ---
 
@@ -601,7 +758,7 @@ GET /api/v1/access/policies/
 ```
 No special permission required — authenticated only.
 
-Returns all policies with their permission codes. Used as a fallback by the frontend when roles don't include inline `permission_codes`.
+Returns all policies with their permission codes.
 
 **Response `200 OK`:**
 ```json
@@ -635,6 +792,7 @@ Returns all policies with their permission codes. Used as a fallback by the fron
 | Update Department | `PATCH` | `iam.department.update` |
 | Delete Department | `DELETE` | `iam.department.delete` |
 | List Roles | `GET` | *(authenticated only)* |
+| Get Role Form Options | `GET` | *(authenticated only)* |
 | List Permissions | `GET` | *(authenticated only)* |
 | List Policies | `GET` | *(authenticated only)* |
 | Get My Profile | `GET` | *(authenticated only)* |

@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query'
-import type { User, UserDetail, Role, Permission, Policy, Department, Me, LoginRequest, CreateUserPayload, UpdateUserPayload, AuditLogParams, AuditLogResponse  } from '../types'
+import type { User, UserDetail, Role, Permission, Policy, Department, Me, LoginRequest, CreateUserPayload, UpdateUserPayload, AuditLogParams, AuditLogResponse, RoleFormOptions  } from '../types'
 
 const getCsrfToken = () =>
   document.cookie
@@ -105,6 +105,14 @@ export const iamApi = createApi({
       query: (body) => ({ url: '/access/roles/', method: 'POST', body }),
       invalidatesTags: ['Role'],
     }),
+    getRoleFormOptions: builder.query<RoleFormOptions, string | undefined>({
+      query: (department_id) => ({
+        url: '/access/roles/form-options/',
+        params: department_id ? { department: department_id } : {},
+      }),
+      providesTags: ['Role'],
+    }),
+
 
     // Permissions
     getPermissions: builder.query<Permission[], void>({
@@ -179,6 +187,7 @@ export const {
   useUpdateProfileMutation,
   useChangePasswordMutation,
   useResetUserPasswordMutation,
-  useGetAuditLogsQuery 
+  useGetAuditLogsQuery ,
+  useGetRoleFormOptionsQuery 
 } = iamApi
 

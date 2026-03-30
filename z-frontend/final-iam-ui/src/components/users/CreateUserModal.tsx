@@ -7,24 +7,12 @@ import { useForm } from "@mantine/form";
 import { IconAlertCircle, IconShield } from "@tabler/icons-react";
 import {
   useCreateUserMutation,
-  useGetRolesQuery,
+  useGetRoleFormOptionsQuery,
   useGetDepartmentsQuery,
   useGetMeQuery,
 } from "../../services/iamApi";
 import type { CreateUserPayload, Policy } from "../../types";
 import PolicyCard from "./PolicyCard";
-
-const PLATFORM_ROLES = new Set([
-  "platform.admin",
-  "platform.viewer",
-])
-
-const HIDDEN_ROLES = new Set([
-  "platform.admin",
-  "platform.viewer",
-  "department.admin",
-  "department.viewer",
-]);
 
 interface Props {
   opened: boolean;
@@ -37,7 +25,6 @@ export default function CreateUserModal({ opened, onClose }: Props) {
   const [systemRoles, setSystemRoles] = useState<Record<string, string>>({});
 
   const { data: me } = useGetMeQuery();
-  const { data: roles } = useGetRolesQuery();
   const { data: departments } = useGetDepartmentsQuery();
   const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
 
@@ -71,41 +58,29 @@ export default function CreateUserModal({ opened, onClose }: Props) {
 
   const selectedDeptId = isDeptAdmin ? (myDept?.id ?? "") : form.values.department;
   const selectedDept = departments?.find((d) => d.id === selectedDeptId);
-//   const allowedSystems = selectedDept?.allowed_systems ?? [];
   const hasDepartment = isDeptAdmin ? !!myDept : !!form.values.department;
-  const allSystems = [...new Set(roles?.map((r) => r.system).filter((s) => !['iam', 'dept', 'platform'].includes(s)) ?? [])]
-  const isPlatformManagementRole = !!managementRole && PLATFORM_ROLES.has(managementRole)
-  const allowedSystems = hasDepartment
-    ? (isPlatformManagementRole ? allSystems : (selectedDept?.allowed_systems ?? []))
-    : []
+
+  // Fetch form options from backend — scoped to selected department
+  const { data: formOptions } = useGetRoleFormOptionsQuery(selectedDeptId || undefined, {
+    skip: !hasDepartment,
+  })
 
   const managementRoleOptions = useMemo(() => {
-  if (isDeptAdmin) return []
+    if (isDeptAdmin || !formOptions) return []
+    return [
+      { value: "", label: "None" },
+      ...formOptions.management_roles.map((r) => ({ value: r.code, label: r.name })),
+    ]
+  }, [isDeptAdmin, formOptions])
 
-  const isGlobal = selectedDept?.code === "GLOBAL"
-  const base = [{ value: "", label: "None" }]
-
-  const platformRoles = roles
-    ?.filter((r) => r.code.startsWith("platform."))
-    .map((r) => ({ value: r.code, label: r.name })) ?? []
-
-  const deptRoles = roles
-    ?.filter((r) => r.code.startsWith("department."))
-    .map((r) => ({ value: r.code, label: r.name })) ?? []
-
-
-  if (isSuperuser) {
-    return isGlobal
-      ? [...base, ...platformRoles]
-      : [...base, ...deptRoles, ...platformRoles]
-  }
-
-  // Platform admin — only dept roles, not for GLOBAL
-  return isGlobal ? base : [...base, ...deptRoles]
-}, [isSuperuser, isDeptAdmin, selectedDept, roles])
+  const selectedMgmtRole = formOptions?.management_roles.find((r) => r.code === managementRole)
+  const grantsForCurrentMgmt = selectedMgmtRole?.grants_systems ?? []
+  const allowedSystems = hasDepartment
+    ? (grantsForCurrentMgmt.length ? grantsForCurrentMgmt : (selectedDept?.allowed_systems ?? []))
+    : []
 
   const getRolesForSystem = (system: string) =>
-    roles?.filter((r) => r.system === system && !HIDDEN_ROLES.has(r.code)) ?? [];
+    formOptions?.system_roles[system] ?? []
 
   const closeModal = () => {
     onClose();
@@ -125,9 +100,7 @@ export default function CreateUserModal({ opened, onClose }: Props) {
     }
 
     const systemRoleIds = Object.values(systemRoles).filter(Boolean);
-    const managementRoleId = managementRole
-      ? roles?.find((r) => r.code === managementRole)?.id
-      : null;
+    const managementRoleId = selectedMgmtRole?.id ?? null
     const allRoleIds = [
       ...(managementRoleId ? [managementRoleId] : []),
       ...systemRoleIds,
@@ -161,33 +134,33 @@ export default function CreateUserModal({ opened, onClose }: Props) {
 
   // Deduplicated policies from all selected roles
   const resolvedPolicies = useMemo(() => {
+    if (!formOptions) return []
     const seen = new Set<string>();
     const result: { policy: Policy; color: string }[] = [];
 
-    if (managementRole) {
-      const role = roles?.find((r) => r.code === managementRole);
-      role?.policies.forEach((p) => {
+    if (selectedMgmtRole) {
+      selectedMgmtRole.policies?.forEach((p) => {
         if (!seen.has(p.id)) {
-          seen.add(p.id);
-          result.push({ policy: p, color: "blue" });
+          seen.add(p.id)
+          result.push({ policy: p, color: "blue" })
         }
-      });
+      })
     }
 
     Object.entries(systemRoles)
       .filter(([, id]) => id)
-      .forEach(([, id]) => {
-        const role = roles?.find((r) => r.id === id);
-        role?.policies.forEach((p) => {
+      .forEach(([system, id]) => {
+        const role = formOptions.system_roles[system]?.find((r) => r.id === id)
+        role?.policies?.forEach((p) => {
           if (!seen.has(p.id)) {
-            seen.add(p.id);
-            result.push({ policy: p, color: "teal" });
+            seen.add(p.id)
+            result.push({ policy: p, color: "teal" })
           }
-        });
+        })
       });
 
     return result;
-  }, [managementRole, systemRoles, roles]);
+  }, [managementRole, systemRoles, formOptions]);
 
   return (
     <Modal
@@ -215,14 +188,12 @@ export default function CreateUserModal({ opened, onClose }: Props) {
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
 
-          {/* Basic Info */}
           <TextInput required label="Username" placeholder="john.doe" {...form.getInputProps("username")} />
           <PasswordInput required label="Password" placeholder="••••••••" {...form.getInputProps("password")} />
           <TextInput required label="First Name" placeholder="John" {...form.getInputProps("first_name")} />
           <TextInput required label="Last Name" placeholder="Doe" {...form.getInputProps("last_name")} />
           <TextInput required label="Email" placeholder="john@example.com" {...form.getInputProps("email")} />
 
-          {/* Department */}
           {isDeptAdmin ? (
             <TextInput label="Department" value={myDept?.name ?? ""} disabled />
           ) : (
@@ -240,7 +211,6 @@ export default function CreateUserModal({ opened, onClose }: Props) {
             />
           )}
 
-          {/* Management Role */}
           {!isDeptAdmin && (
             <>
               <Divider label="Management Role" labelPosition="left" />
@@ -250,22 +220,21 @@ export default function CreateUserModal({ opened, onClose }: Props) {
                 value={managementRole}
                 onChange={(val) => {
                   setManagementRole(val)
+                  const role = formOptions?.management_roles.find((r) => r.code === val)
+                  const grants = role?.grants_systems ?? []
+                  const effectiveSystems = grants.length ? grants : (selectedDept?.allowed_systems ?? [])
 
-                  // Only auto-select system roles for platform-level roles
-                  const isPlatformRole = val === "platform.admin" || val === "platform.viewer"
-
-                  if (isPlatformRole && allowedSystems.length > 0) {
-                    const suffix = val.endsWith(".admin") ? "admin" : "viewer"
+                  if (grants.length && effectiveSystems.length > 0) {
+                    const suffix = val!.endsWith(".admin") ? "admin" : "viewer"
                     const autoSelected: Record<string, string> = {}
-                    for (const system of allowedSystems) {
-                      const match = roles?.find((r) => r.code === `${system}.${suffix}`)
+                    for (const system of effectiveSystems) {
+                      const match = formOptions?.system_roles[system]?.find((r) => r.code === `${system}.${suffix}`)
                       if (match) autoSelected[system] = match.id
                     }
                     setSystemRoles(autoSelected)
                   } else if (!val) {
                     setSystemRoles({})
                   }
-                  // dept.admin / dept.viewer → leave system roles as-is
                 }}
                 clearable
                 disabled={!hasDepartment}
@@ -273,7 +242,6 @@ export default function CreateUserModal({ opened, onClose }: Props) {
             </>
           )}
 
-          {/* System Roles */}
           {allowedSystems.length > 0 && (
             <>
               <Divider label="System Roles" labelPosition="left" />
@@ -296,12 +264,11 @@ export default function CreateUserModal({ opened, onClose }: Props) {
                     </Group>
                   </Paper>
                 ))}
-              </Stack>
-            </>
-          )}
+            </Stack>
+          </>
+        )}
 
-          {/* Policies — deduplicated, read only */}
-          {hasSelectedRoles && (
+          {hasSelectedRoles && resolvedPolicies.length > 0 && (
             <>
               <Divider label="Policies" labelPosition="left" />
               <Stack gap="xs">
@@ -316,7 +283,6 @@ export default function CreateUserModal({ opened, onClose }: Props) {
           )}
 
           <Divider />
-
           <Group justify="flex-end">
             <Button variant="default" onClick={closeModal}>Cancel</Button>
             <Button type="submit" loading={isCreating}>Submit</Button>

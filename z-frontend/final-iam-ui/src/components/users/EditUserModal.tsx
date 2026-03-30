@@ -8,16 +8,13 @@ import { useForm } from "@mantine/form"
 import { IconAlertCircle, IconShield, IconChevronDown, IconChevronUp, IconX } from "@tabler/icons-react"
 import {
   useUpdateUserMutation,
-  useGetRolesQuery,
+  useGetRoleFormOptionsQuery,
   useGetDepartmentsQuery,
   useGetMeQuery,
   useGetUserQuery,
-  useGetPoliciesQuery,
   useGetPermissionsQuery,
 } from "../../services/iamApi"
-import type { User, Permission } from "../../types"
-
-const META_SYSTEMS = new Set(["iam"])
+import type { User, Permission, RoleRef } from "../../types"
 
 interface Props {
   user: User | null
@@ -34,9 +31,7 @@ export default function EditUserModal({ user, onClose }: Props) {
   const initializedRef = useRef(false)
 
   const { data: me } = useGetMeQuery()
-  const { data: roles } = useGetRolesQuery()
   const { data: departments } = useGetDepartmentsQuery()
-  const { data: allPolicies } = useGetPoliciesQuery()
   const { data: allPermissions } = useGetPermissionsQuery()
   const { data: userDetail } = useGetUserQuery(user?.id ?? "", { skip: !user, refetchOnMountOrArgChange: true })
   const [updateUser, { isLoading }] = useUpdateUserMutation()
@@ -56,41 +51,53 @@ export default function EditUserModal({ user, onClose }: Props) {
     },
   })
 
-  const getPermCodesForPolicy = useCallback((policyId: string, inlineCodes?: string[]): string[] => {
-    if (inlineCodes?.length) return inlineCodes
-    return allPolicies?.find((p) => p.id === policyId)?.permission_codes ?? []
-  }, [allPolicies])
+  const myDept = useMemo(() => {
+    if (!isDeptAdmin || !me?.department || !departments) return null
+    return departments.find((d) => d.code === me.department.code) ?? null
+  }, [isDeptAdmin, me, departments])
+
+  const selectedDeptId = isDeptAdmin ? (myDept?.id ?? "") : form.values.department
+  const selectedDept = departments?.find((d) => d.id === selectedDeptId)
+  const hasDepartment = isDeptAdmin ? !!myDept : !!form.values.department
+
+  const { data: formOptions } = useGetRoleFormOptionsQuery(selectedDeptId || undefined, {
+    skip: !user || !selectedDeptId,
+  })
+
+  // Flat list of all roles from formOptions for permission computation
+  const allFormRoles = useMemo((): RoleRef[] => {
+    if (!formOptions) return []
+    return [
+      ...formOptions.management_roles,
+      ...Object.values(formOptions.system_roles).flat(),
+    ]
+  }, [formOptions])
 
   const computePermissionsForRole = useCallback((roleId: string): string[] => {
-    if (!roles || !allPermissions || !roleId) return []
-    const role = roles.find((r) => r.id === roleId)
-    if (!role) return []
+    if (!allPermissions || !roleId) return []
+    const role = allFormRoles.find((r) => r.id === roleId)
+    if (!role?.policies) return []
     const permCodes = new Set<string>()
-    for (const policy of role.policies) {
-      getPermCodesForPolicy(policy.id, policy.permission_codes).forEach((c) => permCodes.add(c))
-    }
+    role.policies.forEach((p) => p.permission_codes.forEach((c) => permCodes.add(c)))
     return allPermissions.filter((p) => permCodes.has(p.code)).map((p) => p.id)
-  }, [roles, allPermissions, getPermCodesForPolicy])
+  }, [allFormRoles, allPermissions])
 
   const computePermissionsFromRoles = useCallback((
-    mgmtRole: string | null,
+    mgmtRoleCode: string | null,
     sysRoles: Record<string, string>
   ): string[] => {
-    if (!roles || !allPermissions) return []
+    if (!allPermissions) return []
     const roleIds = [
-      ...(mgmtRole ? [roles.find((r) => r.code === mgmtRole)?.id] : []),
+      ...(mgmtRoleCode ? [formOptions?.management_roles.find((r) => r.code === mgmtRoleCode)?.id] : []),
       ...Object.values(sysRoles).filter(Boolean),
     ].filter(Boolean) as string[]
     const permCodes = new Set<string>()
     for (const roleId of roleIds) {
-      const role = roles.find((r) => r.id === roleId)
-      if (!role) continue
-      for (const policy of role.policies) {
-        getPermCodesForPolicy(policy.id, policy.permission_codes).forEach((c) => permCodes.add(c))
-      }
+      const role = allFormRoles.find((r) => r.id === roleId)
+      role?.policies?.forEach((p) => p.permission_codes.forEach((c) => permCodes.add(c)))
     }
     return allPermissions.filter((p) => permCodes.has(p.code)).map((p) => p.id)
-  }, [roles, allPermissions, getPermCodesForPolicy])
+  }, [allFormRoles, allPermissions, formOptions])
 
   useEffect(() => {
     if (!user) return
@@ -102,7 +109,6 @@ export default function EditUserModal({ user, onClose }: Props) {
       department: user.department?.id ?? "",
     })
 
-    // Backend pre-splits — no detection or cross-referencing needed
     setManagementRole(user.management_role?.code ?? null)
     const sysRoles: Record<string, string> = {}
     user.system_roles.forEach((r) => { sysRoles[r.system] = r.id })
@@ -121,58 +127,25 @@ export default function EditUserModal({ user, onClose }: Props) {
     }
   }, [user, userDetail, allPermissions])
 
-  const myDept = useMemo(() => {
-    if (!isDeptAdmin || !me?.department || !departments) return null
-    return departments.find((d) => d.code === me.department.code) ?? null
-  }, [isDeptAdmin, me, departments])
+  // Selected management role object — from formOptions if loaded, fallback to user data
+  const selectedMgmtRole = formOptions?.management_roles.find((r) => r.code === managementRole)
+  const grantsForCurrentMgmt = selectedMgmtRole?.grants_systems
+    ?? (user?.management_role?.code === managementRole ? user.management_role.grants_systems ?? [] : [])
 
-  const selectedDeptId = isDeptAdmin ? (myDept?.id ?? "") : form.values.department
-  const selectedDept = departments?.find((d) => d.id === selectedDeptId)
-  const hasDepartment = isDeptAdmin ? !!myDept : !!form.values.department
-
-  // Use grants_systems from the saved management role if it matches current selection,
-  // otherwise derive from the role's policies (when user picks a different role)
-  const getGrantsSystems = (roleCode: string | null): string[] => {
-    if (!roleCode) return []
-    if (user?.management_role?.code === roleCode && user.management_role.grants_systems?.length) {
-      return user.management_role.grants_systems
-    }
-    const roleData = roles?.find((r) => r.code === roleCode)
-    return roleData
-      ? [...new Set(roleData.policies.map((p) => p.system).filter((s) => !META_SYSTEMS.has(s)))]
-      : []
-  }
-
-  const grantsForCurrentMgmt = getGrantsSystems(managementRole)
   const allowedSystems = hasDepartment
     ? (grantsForCurrentMgmt.length ? grantsForCurrentMgmt : (selectedDept?.allowed_systems ?? []))
     : []
 
   const managementRoleOptions = useMemo(() => {
-    if (isDeptAdmin) return []
-
-    const isGlobal = selectedDept?.code === "GLOBAL"
-    const base = [{ value: "", label: "None" }]
-
-    const platformRoles = roles
-      ?.filter((r) => r.code.startsWith("platform."))
-      .map((r) => ({ value: r.code, label: r.name })) ?? []
-
-    const deptRoles = roles
-      ?.filter((r) => r.code.startsWith("department."))
-      .map((r) => ({ value: r.code, label: r.name })) ?? []
-
-    if (isSuperuser) {
-      return isGlobal
-        ? [...base, ...platformRoles]
-        : [...base, ...deptRoles, ...platformRoles]
-    }
-
-    return isGlobal ? base : [...base, ...deptRoles]
-  }, [isSuperuser, isDeptAdmin, selectedDept, roles])
+    if (isDeptAdmin || !formOptions) return []
+    return [
+      { value: "", label: "None" },
+      ...formOptions.management_roles.map((r) => ({ value: r.code, label: r.name })),
+    ]
+  }, [isDeptAdmin, formOptions])
 
   const getRolesForSystem = (system: string) =>
-    roles?.filter((r) => r.system === system) ?? []
+    formOptions?.system_roles[system] ?? []
 
   const groupAndSort = (perms: Permission[]): Record<string, Record<string, Permission[]>> => {
     const grouped: Record<string, Record<string, Permission[]>> = {}
@@ -252,7 +225,9 @@ export default function EditUserModal({ user, onClose }: Props) {
     const deptId = isDeptAdmin ? (myDept?.id ?? "") : values.department
     if (!deptId) { setError("Department is required"); return }
     const systemRoleIds = Object.values(systemRoles).filter(Boolean)
-    const managementRoleId = managementRole ? roles?.find((r) => r.code === managementRole)?.id : null
+    const managementRoleId = selectedMgmtRole?.id
+      ?? (user?.management_role?.code === managementRole ? user.management_role?.id : null)
+      ?? null
     const allRoleIds = [...(managementRoleId ? [managementRoleId] : []), ...systemRoleIds]
     if (allRoleIds.length === 0) { setError("User must have at least one role"); return }
     if (allowedSystems.length > 0 && systemRoleIds.length === 0) { setError("At least one system role is required"); return }
@@ -380,16 +355,15 @@ export default function EditUserModal({ user, onClose }: Props) {
                 value={managementRole}
                 onChange={(val) => {
                   setManagementRole(val)
-                  const grants = getGrantsSystems(val)
-                  const effectiveSystems = grants.length
-                    ? grants
-                    : (selectedDept?.allowed_systems ?? [])
+                  const role = formOptions?.management_roles.find((r) => r.code === val)
+                  const grants = role?.grants_systems ?? []
+                  const effectiveSystems = grants.length ? grants : (selectedDept?.allowed_systems ?? [])
 
                   if (grants.length && effectiveSystems.length > 0) {
                     const suffix = val!.endsWith(".admin") ? "admin" : "viewer"
                     const autoSelected: Record<string, string> = {}
                     for (const system of effectiveSystems) {
-                      const match = roles?.find((r) => r.code === `${system}.${suffix}`)
+                      const match = formOptions?.system_roles[system]?.find((r) => r.code === `${system}.${suffix}`)
                       if (match) autoSelected[system] = match.id
                     }
                     setSystemRoles(autoSelected)

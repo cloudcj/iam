@@ -6,8 +6,13 @@ export interface RoleRef {
   name: string
   system: string
   grants_systems?: string[]   // only present on management roles
+  policies?: Policy[]         // included in form-options response
 }
 
+export interface RoleFormOptions {
+  management_roles: RoleRef[]
+  system_roles: Record<string, RoleRef[]>
+}
 
 export interface User {
   id: string
