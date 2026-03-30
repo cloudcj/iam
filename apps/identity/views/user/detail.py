@@ -93,6 +93,7 @@ from django.shortcuts import get_object_or_404
 from apps.identity.models import User
 from apps.access.models import UserPermission
 from apps.access.models.policy import Policy
+from apps.access.models.permission import Permission
 from apps.authz.permissions import HasPermission
 from apps.authz.services.authorization_service import AuthorizationService
 from apps.common.constants.permission_codes import IAMPermissions
@@ -147,6 +148,12 @@ class UserDetailView(APIView):
             AuthorizationService.get_user_permission_codes(target)
         )
 
+        all_permission_ids = list(
+            Permission.objects
+            .filter(code__in=all_permission_codes)
+            .values_list("id", flat=True)
+        )
+
         direct_perm_ids = set(
             UserPermission.objects
             .filter(user=target, source=UserPermission.SOURCE_DIRECT)
@@ -182,5 +189,6 @@ class UserDetailView(APIView):
             "management_role": management_role,
             "system_roles": system_roles,
             "permission_codes": list(all_permission_codes),
+            "permission_ids": [str(pid) for pid in all_permission_ids],
             "extra_permission_ids": extra_permission_ids,
         })

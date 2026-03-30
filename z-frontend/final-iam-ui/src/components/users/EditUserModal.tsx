@@ -64,7 +64,6 @@ export default function EditUserModal({ user, onClose }: Props) {
     skip: !user || !selectedDeptId,
   })
 
-  // Flat list of all roles from formOptions for permission computation
   const allFormRoles = useMemo((): RoleRef[] => {
     if (!formOptions) return []
     return [
@@ -116,9 +115,7 @@ export default function EditUserModal({ user, onClose }: Props) {
 
     if (!initializedRef.current && userDetail && allPermissions) {
       if (isSuperuser) {
-        const userPermCodes = new Set(userDetail.permission_codes)
-        const preChecked = allPermissions.filter((p) => userPermCodes.has(p.code)).map((p) => p.id)
-        setSelectedPermissionIds(preChecked)
+        setSelectedPermissionIds(userDetail.permission_ids)
       } else if (isPlatformAdmin) {
         setDirectPermIds(userDetail.extra_permission_ids)
         setSelectedPermissionIds([])
@@ -127,7 +124,6 @@ export default function EditUserModal({ user, onClose }: Props) {
     }
   }, [user, userDetail, allPermissions])
 
-  // Selected management role object — from formOptions if loaded, fallback to user data
   const selectedMgmtRole = formOptions?.management_roles.find((r) => r.code === managementRole)
   const grantsForCurrentMgmt = selectedMgmtRole?.grants_systems
     ?? (user?.management_role?.code === managementRole ? user.management_role.grants_systems ?? [] : [])

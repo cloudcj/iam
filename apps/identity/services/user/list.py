@@ -201,13 +201,14 @@ def list_users(
         qs = qs.exclude(is_superuser=True)
 
     # --------------------------------------------------
-    # 🔎 FILTERS — scope reducers only
+    # 🔎 FILTERS/SEARCH — scope reducers only
     # --------------------------------------------------
     if search:
         qs = qs.filter(
             Q(username__icontains=search) |
-            Q(email__icontains=search)
+            Q(email__icontains=search) 
         )
+
 
     if is_active is not None:
         qs = qs.filter(is_active=is_active)

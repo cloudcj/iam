@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Title, Button, Badge, Group, ActionIcon } from "@mantine/core";
+import { Title, Button, Badge, Group, ActionIcon, TextInput, Select, Stack } from "@mantine/core";
+import { useDebouncedValue } from "@mantine/hooks";
 import { DataTable } from "mantine-datatable";
-import { IconPlus, IconEye, IconEdit, IconTrash } from "@tabler/icons-react";
+import { IconPlus, IconEye, IconEdit, IconTrash, IconSearch } from "@tabler/icons-react";
 import Swal from "sweetalert2";
 import {
   useGetUsersQuery,
   useGetMeQuery,
+  useGetDepartmentsQuery,
+  useGetRolesQuery,
   useDeleteUserMutation,
 } from "../services/iamApi";
 import CreateUserModal from "../components/users/CreateUserModal";
@@ -17,10 +20,25 @@ export default function UsersPage() {
   const [createOpened, setCreateOpened] = useState(false);
   const [viewUser, setViewUser] = useState<User | null>(null);
   const [editUser, setEditUser] = useState<User | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [departmentFilter, setDepartmentFilter] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [debouncedSearch] = useDebouncedValue(search, 300);
 
-  const { data: users, isLoading } = useGetUsersQuery();
   const { data: me } = useGetMeQuery();
+  const { data: departments } = useGetDepartmentsQuery();
+  const { data: roles } = useGetRolesQuery();
   const [deleteUser] = useDeleteUserMutation();
+
+  const isPlatformLevel = me?.is_superuser || me?.roles?.some((r) => r.startsWith("platform."));
+
+  const { data: users, isLoading } = useGetUsersQuery({
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    ...(statusFilter !== null ? { is_active: statusFilter === "true" } : {}),
+    ...(departmentFilter ? { department: departmentFilter } : {}),
+    ...(roleFilter ? { role: roleFilter } : {}),
+  });
 
   const canCreate =
     me?.is_superuser || me?.permissions.includes("iam.user.create");
@@ -74,6 +92,44 @@ export default function UsersPage() {
           </Button>
         )}
       </Group>
+
+      <Stack gap="sm" mb="md">
+        <Group grow>
+          <TextInput
+            placeholder="Search by username or email"
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+          />
+          <Select
+            placeholder="Status"
+            clearable
+            data={[
+              { value: "true", label: "Active" },
+              { value: "false", label: "Deactivated" },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+          {isPlatformLevel && (
+            <Select
+              placeholder="Department"
+              clearable
+              data={departments?.map((d) => ({ value: d.id, label: d.name })) ?? []}
+              value={departmentFilter}
+              onChange={setDepartmentFilter}
+            />
+          )}
+          <Select
+            placeholder="Role"
+            clearable
+            searchable
+            data={roles?.map((r) => ({ value: r.code, label: r.name })) ?? []}
+            value={roleFilter}
+            onChange={setRoleFilter}
+          />
+        </Group>
+      </Stack>
 
       <DataTable
         withTableBorder
