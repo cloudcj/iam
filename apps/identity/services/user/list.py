@@ -226,5 +226,9 @@ def list_users(
         .distinct()
         .order_by("username")
         .select_related("department")
-        .prefetch_related("user_roles__role")
+        .prefetch_related(
+            "user_roles__role",
+            "user_roles__role__role_policies__policy",
+        )
     )
+

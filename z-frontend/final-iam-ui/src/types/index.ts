@@ -1,5 +1,14 @@
 // ─── User ────────────────────────────────────────────────────────────────────
 
+export interface RoleRef {
+  id: string
+  code: string
+  name: string
+  system: string
+  grants_systems?: string[]   // only present on management roles
+}
+
+
 export interface User {
   id: string
   username: string
@@ -12,20 +21,13 @@ export interface User {
     code: string
     name: string
   }
-  roles: string[]   // role codes e.g. ["platform.admin", "tropos.admin"]
+  management_role: RoleRef | null
+  system_roles: RoleRef[]
 }
 
-export interface UserDetail {
-  id: string
-  username: string
-  first_name: string
-  last_name: string
-  email: string
-  is_active: boolean
-  department: string | null         // UUID — used to pre-fill the department select
-  roles: string[]                   // role codes
-  permission_codes: string[]        // all effective permission codes
-  extra_permission_ids: string[]    // direct-assigned permission IDs (source=direct)
+export interface UserDetail extends User {
+  permission_codes: string[]
+  extra_permission_ids: string[]
 }
 
 interface UserBasePayload {
@@ -42,9 +44,9 @@ export interface CreateUserPayload extends UserBasePayload {
 }
 
 export interface UpdateUserPayload extends UserBasePayload {
-  username?: string       // superuser only
+  username?: string         // superuser only
   is_active?: boolean
-  department: string      // UUID — always required on update
+  department: string        // UUID — always required on update
   permission_ids?: string[] // UUID[] — superuser/platform admin only
 }
 
@@ -100,7 +102,7 @@ export interface Policy {
   name: string
   system: string
   resource: string
-  description?: string        // optional — many policies have no description
+  description?: string
   permission_codes: string[]
 }
 
@@ -117,9 +119,9 @@ export interface Permission {
 
 export interface AuditLog {
   id: string
-  actor: string | null          // username
-  actor_name: string | null     // full name
-  department: string | null     // actor's department name
+  actor: string | null
+  actor_name: string | null
+  department: string | null
   action: string
   target_id: string | null
   target_type: string

@@ -17,8 +17,7 @@ import {
 } from "../../services/iamApi"
 import type { User, Permission } from "../../types"
 
-const PLATFORM_ROLES = new Set(["platform.admin", "platform.viewer"])
-const HIDDEN_ROLES = new Set(["platform.admin", "platform.viewer", "department.admin", "department.viewer"])
+const META_SYSTEMS = new Set(["iam"])
 
 interface Props {
   user: User | null
@@ -102,28 +101,13 @@ export default function EditUserModal({ user, onClose }: Props) {
       email: user.email ?? "",
       department: user.department?.id ?? "",
     })
-    if (roles) {
-      const userRoleCodes = user.roles
-      const mgmtRole = userRoleCodes.find((code) => HIDDEN_ROLES.has(code))
-      setManagementRole(mgmtRole ?? null)
-      const sysRoles: Record<string, string> = {}
-      userRoleCodes
-        .filter((code) => !HIDDEN_ROLES.has(code))
-        .forEach((code) => {
-          const role = roles.find((r) => r.code === code)
-          if (role) sysRoles[role.system] = role.id
-        })
-      // Auto-select system roles if platform role is pre-filled but no system roles exist
-      if (mgmtRole && PLATFORM_ROLES.has(mgmtRole) && Object.keys(sysRoles).length === 0) {
-        const suffix = mgmtRole.endsWith(".admin") ? "admin" : "viewer"
-        const computedAllSystems = [...new Set(roles.map((r) => r.system).filter((s) => !['iam', 'dept', 'platform'].includes(s)))]
-        for (const system of computedAllSystems) {
-          const match = roles.find((r) => r.code === `${system}.${suffix}`)
-          if (match) sysRoles[system] = match.id
-        }
-      }
-      setSystemRoles(sysRoles)
-    }
+
+    // Backend pre-splits — no detection or cross-referencing needed
+    setManagementRole(user.management_role?.code ?? null)
+    const sysRoles: Record<string, string> = {}
+    user.system_roles.forEach((r) => { sysRoles[r.system] = r.id })
+    setSystemRoles(sysRoles)
+
     if (!initializedRef.current && userDetail && allPermissions) {
       if (isSuperuser) {
         const userPermCodes = new Set(userDetail.permission_codes)
@@ -135,7 +119,7 @@ export default function EditUserModal({ user, onClose }: Props) {
       }
       initializedRef.current = true
     }
-  }, [user, roles, userDetail, allPermissions])
+  }, [user, userDetail, allPermissions])
 
   const myDept = useMemo(() => {
     if (!isDeptAdmin || !me?.department || !departments) return null
@@ -145,10 +129,23 @@ export default function EditUserModal({ user, onClose }: Props) {
   const selectedDeptId = isDeptAdmin ? (myDept?.id ?? "") : form.values.department
   const selectedDept = departments?.find((d) => d.id === selectedDeptId)
   const hasDepartment = isDeptAdmin ? !!myDept : !!form.values.department
-  const allSystems = [...new Set(roles?.map((r) => r.system).filter((s) => !['iam', 'dept', 'platform'].includes(s)) ?? [])]
-  const isPlatformManagementRole = !!managementRole && PLATFORM_ROLES.has(managementRole)
+
+  // Use grants_systems from the saved management role if it matches current selection,
+  // otherwise derive from the role's policies (when user picks a different role)
+  const getGrantsSystems = (roleCode: string | null): string[] => {
+    if (!roleCode) return []
+    if (user?.management_role?.code === roleCode && user.management_role.grants_systems?.length) {
+      return user.management_role.grants_systems
+    }
+    const roleData = roles?.find((r) => r.code === roleCode)
+    return roleData
+      ? [...new Set(roleData.policies.map((p) => p.system).filter((s) => !META_SYSTEMS.has(s)))]
+      : []
+  }
+
+  const grantsForCurrentMgmt = getGrantsSystems(managementRole)
   const allowedSystems = hasDepartment
-    ? (isPlatformManagementRole ? allSystems : (selectedDept?.allowed_systems ?? []))
+    ? (grantsForCurrentMgmt.length ? grantsForCurrentMgmt : (selectedDept?.allowed_systems ?? []))
     : []
 
   const managementRoleOptions = useMemo(() => {
@@ -165,7 +162,6 @@ export default function EditUserModal({ user, onClose }: Props) {
       ?.filter((r) => r.code.startsWith("department."))
       .map((r) => ({ value: r.code, label: r.name })) ?? []
 
-
     if (isSuperuser) {
       return isGlobal
         ? [...base, ...platformRoles]
@@ -175,9 +171,8 @@ export default function EditUserModal({ user, onClose }: Props) {
     return isGlobal ? base : [...base, ...deptRoles]
   }, [isSuperuser, isDeptAdmin, selectedDept, roles])
 
-
   const getRolesForSystem = (system: string) =>
-    roles?.filter((r) => r.system === system && !HIDDEN_ROLES.has(r.code)) ?? []
+    roles?.filter((r) => r.system === system) ?? []
 
   const groupAndSort = (perms: Permission[]): Record<string, Record<string, Permission[]>> => {
     const grouped: Record<string, Record<string, Permission[]>> = {}
@@ -385,9 +380,12 @@ export default function EditUserModal({ user, onClose }: Props) {
                 value={managementRole}
                 onChange={(val) => {
                   setManagementRole(val)
-                  const isPlatformRole = val ? PLATFORM_ROLES.has(val) : false
-                  const effectiveSystems = isPlatformRole ? allSystems : (selectedDept?.allowed_systems ?? [])
-                  if (isPlatformRole && effectiveSystems.length > 0) {
+                  const grants = getGrantsSystems(val)
+                  const effectiveSystems = grants.length
+                    ? grants
+                    : (selectedDept?.allowed_systems ?? [])
+
+                  if (grants.length && effectiveSystems.length > 0) {
                     const suffix = val!.endsWith(".admin") ? "admin" : "viewer"
                     const autoSelected: Record<string, string> = {}
                     for (const system of effectiveSystems) {

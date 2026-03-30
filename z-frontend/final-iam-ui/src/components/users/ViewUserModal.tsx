@@ -80,8 +80,13 @@ export default function ViewUserModal({ user, onClose }: Props) {
 
         <Divider label="Roles" labelPosition="left" />
         <Group gap={6}>
-          {user.roles.map((role) => (
-            <Badge key={role} size="sm" variant="light" tt="none">{role}</Badge>
+          {user.management_role && (
+            <Badge key={user.management_role.id} size="sm" variant="light" color="violet" tt="none">
+              {user.management_role.name}
+            </Badge>
+          )}
+          {user.system_roles.map((role) => (
+            <Badge key={role.id} size="sm" variant="light" tt="none">{role.name}</Badge>
           ))}
         </Group>
 

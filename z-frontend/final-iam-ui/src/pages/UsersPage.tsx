@@ -110,13 +110,17 @@ export default function UsersPage() {
             title: "Roles",
             resizable: true,
             render: (user) => {
-              const visible = user.roles.slice(0, 2);
-              const rest = user.roles.length - 2;
+              const allRoles = [
+                ...(user.management_role ? [user.management_role] : []),
+                ...user.system_roles,
+              ]
+              const visible = allRoles.slice(0, 2)
+              const rest = allRoles.length - 2
               return (
                 <Group gap={4}>
                   {visible.map((role) => (
-                    <Badge key={role} size="sm" variant="light" tt="none">
-                      {role}
+                    <Badge key={role.id} size="sm" variant="light" tt="none">
+                      {role.name}
                     </Badge>
                   ))}
                   {rest > 0 && (
@@ -125,7 +129,7 @@ export default function UsersPage() {
                     </Badge>
                   )}
                 </Group>
-              );
+              )
             },
           },
           {
