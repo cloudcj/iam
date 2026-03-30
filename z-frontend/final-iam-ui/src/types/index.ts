@@ -31,9 +31,9 @@ export interface User {
 }
 
 export interface UserDetail extends User {
-  permission_codes: string[]
   permission_ids: string[]
-  extra_permission_ids: string[]
+  role_permission_ids: string[]
+  direct_permission_ids: string[]
 }
 
 export interface UserListParams {

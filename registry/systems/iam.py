@@ -59,7 +59,7 @@ IAM_SERVICE = make_system(
             "create",
             "update",
             "delete",
-            "update_dept",
+            # "update_dept",
             "reset_password",
         ]),
         "department": ("Departments", [

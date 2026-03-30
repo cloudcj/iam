@@ -10,6 +10,29 @@ from apps.authz.services.authorization_service import AuthorizationService
 
 User = get_user_model()
 
+
+def _validate_permission_coherence(permission_ids):
+    if not permission_ids:
+        return
+    perms = list(
+        Permission.objects
+        .filter(id__in=permission_ids)
+        .values("id", "code", "action", "system", "resource")
+    )
+    read_pairs = {
+        (p["system"], p["resource"])
+        for p in perms
+        if p["action"] == "read"
+    }
+    for p in perms:
+        if p["action"] != "read" and (p["system"], p["resource"]) not in read_pairs:
+            raise ValidationError({
+                "permission_ids": [
+                    f"Cannot assign '{p['code']}' without the read permission for '{p['system']}.{p['resource']}'."
+                ]
+            })
+
+
 @transaction.atomic
 def update_user(*, actor, target, username=None, first_name, last_name, email, is_active, department_id, role_ids, permission_ids=None):
     is_superuser = actor.is_superuser
@@ -24,6 +47,10 @@ def update_user(*, actor, target, username=None, first_name, last_name, email, i
             raise ValidationError({"department": ["Invalid department."]})
     else:
         department = actor.department
+
+    # Validate permission coherence
+    if permission_ids:
+        _validate_permission_coherence(permission_ids)
 
     # Resolve roles
     roles = Role.objects.filter(id__in=role_ids)

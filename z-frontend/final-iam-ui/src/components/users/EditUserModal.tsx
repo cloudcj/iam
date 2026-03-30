@@ -2,10 +2,10 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Modal, TextInput, Stack, Select, Box,
   Paper, Divider, Alert, ThemeIcon, Group, Text, Button,
-  Checkbox, Collapse, UnstyledButton, Badge, ActionIcon,
+  Checkbox, Collapse, UnstyledButton,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
-import { IconAlertCircle, IconShield, IconChevronDown, IconChevronUp, IconX } from "@tabler/icons-react"
+import { IconAlertCircle, IconShield, IconChevronDown, IconChevronUp } from "@tabler/icons-react"
 import {
   useUpdateUserMutation,
   useGetRoleFormOptionsQuery,
@@ -26,7 +26,6 @@ export default function EditUserModal({ user, onClose }: Props) {
   const [managementRole, setManagementRole] = useState<string | null>(null)
   const [systemRoles, setSystemRoles] = useState<Record<string, string>>({})
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([])
-  const [directPermIds, setDirectPermIds] = useState<string[]>([])
   const [showExtraPerms, setShowExtraPerms] = useState(false)
   const initializedRef = useRef(false)
 
@@ -114,15 +113,18 @@ export default function EditUserModal({ user, onClose }: Props) {
     setSystemRoles(sysRoles)
 
     if (!initializedRef.current && userDetail && allPermissions) {
-      if (isSuperuser) {
+      if (isSuperuser || isPlatformAdmin) {
         setSelectedPermissionIds(userDetail.permission_ids)
-      } else if (isPlatformAdmin) {
-        setDirectPermIds(userDetail.extra_permission_ids)
-        setSelectedPermissionIds([])
       }
       initializedRef.current = true
     }
   }, [user, userDetail, allPermissions])
+
+  // Permissions that come from roles — pre-checked but disabled for platform admin
+  const rolePermIds = useMemo(() => {
+    if (!userDetail || !isPlatformAdmin) return new Set<string>()
+    return new Set(userDetail.role_permission_ids)
+  }, [userDetail, isPlatformAdmin])
 
   const selectedMgmtRole = formOptions?.management_roles.find((r) => r.code === managementRole)
   const grantsForCurrentMgmt = selectedMgmtRole?.grants_systems
@@ -167,20 +169,6 @@ export default function EditUserModal({ user, onClose }: Props) {
     return groupAndSort(allPermissions)
   }, [allPermissions])
 
-  const addablePermissionsBySystemResource = useMemo((): Record<string, Record<string, Permission[]>> => {
-    if (!allPermissions) return {}
-    const userPerms = new Set(userDetail?.permission_codes ?? [])
-    const directIds = new Set(directPermIds)
-    const filtered = allPermissions.filter((p) => !userPerms.has(p.code) && !directIds.has(p.id))
-    return groupAndSort(filtered)
-  }, [allPermissions, userDetail, directPermIds])
-
-  const currentDirectPerms = useMemo((): Permission[] => {
-    if (!allPermissions || !directPermIds.length) return []
-    const ids = new Set(directPermIds)
-    return allPermissions.filter((p) => ids.has(p.id))
-  }, [allPermissions, directPermIds])
-
   const togglePermission = (perm: Permission, checkedIds: string[], setter: React.Dispatch<React.SetStateAction<string[]>>) => {
     const isRead = perm.action === "read"
     if (isRead) {
@@ -210,7 +198,6 @@ export default function EditUserModal({ user, onClose }: Props) {
     setManagementRole(null)
     setSystemRoles({})
     setSelectedPermissionIds([])
-    setDirectPermIds([])
     setShowExtraPerms(false)
     initializedRef.current = false
   }
@@ -229,7 +216,7 @@ export default function EditUserModal({ user, onClose }: Props) {
     if (allowedSystems.length > 0 && systemRoleIds.length === 0) { setError("At least one system role is required"); return }
     const finalPermissionIds = isSuperuser
       ? selectedPermissionIds
-      : [...directPermIds, ...selectedPermissionIds]
+      : selectedPermissionIds.filter((id) => !rolePermIds.has(id))
     try {
       await updateUser({
         id: user.id,
@@ -255,7 +242,7 @@ export default function EditUserModal({ user, onClose }: Props) {
     bySystemResource: Record<string, Record<string, Permission[]>>,
     checkedIds: string[],
     setter: React.Dispatch<React.SetStateAction<string[]>>,
-    userHasReadFn?: (system: string, resource: string) => boolean
+    disabledIds?: Set<string>
   ) => (
     <>
       {Object.entries(bySystemResource).map(([system, resources]) => (
@@ -264,9 +251,7 @@ export default function EditUserModal({ user, onClose }: Props) {
           <Stack gap="xs">
             {Object.entries(resources).map(([resource, perms]) => {
               const readPerm = perms.find((p) => p.action === "read")
-              const readInChecked = readPerm ? checkedIds.includes(readPerm.id) : false
-              const readFromUser = userHasReadFn ? userHasReadFn(system, resource) : false
-              const readChecked = readInChecked || readFromUser
+              const readChecked = readPerm ? checkedIds.includes(readPerm.id) : false
               return (
                 <Paper key={resource} withBorder p="sm">
                   <Text size="xs" fw={600} c="dimmed" mb={6} tt="capitalize">{resource}</Text>
@@ -277,7 +262,7 @@ export default function EditUserModal({ user, onClose }: Props) {
                         label={p.action}
                         description={p.code}
                         checked={checkedIds.includes(p.id)}
-                        disabled={p.action !== "read" && !readChecked}
+                        disabled={disabledIds?.has(p.id) || (p.action !== "read" && !readChecked)}
                         onChange={() => togglePermission(p, checkedIds, setter)}
                       />
                     ))}
@@ -428,58 +413,19 @@ export default function EditUserModal({ user, onClose }: Props) {
               <Collapse in={showExtraPerms}>
                 <Stack gap="sm" mt="xs">
 
-                  {isSuperuser && (
+                  {(isSuperuser || isPlatformAdmin) && (
                     <>
                       <Text size="xs" c="dimmed">
-                        Check/uncheck any permission. Role selections above are presets.
+                        {isSuperuser
+                          ? "Check/uncheck any permission. Role selections above are presets."
+                          : "Greyed permissions are granted by the user's role and cannot be removed here."}
                       </Text>
-                      {renderPermissionGroup(allPermissionsBySystemResource, selectedPermissionIds, setSelectedPermissionIds)}
-                    </>
-                  )}
-
-                  {isPlatformAdmin && (
-                    <>
-                      {currentDirectPerms.length > 0 && (
-                        <Box>
-                          <Text size="xs" fw={600} c="dimmed" mb={6}>Current Direct Permissions</Text>
-                          <Group gap="xs">
-                            {currentDirectPerms.map((p) => (
-                              <Badge
-                                key={p.id}
-                                variant="light"
-                                color="blue"
-                                rightSection={
-                                  <ActionIcon
-                                    size="xs"
-                                    variant="transparent"
-                                    onClick={() => setDirectPermIds((prev) => prev.filter((id) => id !== p.id))}
-                                  >
-                                    <IconX size={10} />
-                                  </ActionIcon>
-                                }
-                              >
-                                {p.code}
-                              </Badge>
-                            ))}
-                          </Group>
-                        </Box>
+                      {renderPermissionGroup(
+                        allPermissionsBySystemResource,
+                        selectedPermissionIds,
+                        setSelectedPermissionIds,
+                        isPlatformAdmin ? rolePermIds : undefined
                       )}
-
-                      <Box>
-                        <Text size="xs" fw={600} c="dimmed" mb={6}>Add Permissions</Text>
-                        <Text size="xs" c="dimmed" mb={8}>Only showing permissions this user does not have yet.</Text>
-                        {Object.keys(addablePermissionsBySystemResource).length === 0 ? (
-                          <Text size="xs" c="dimmed">User already has all available permissions.</Text>
-                        ) : (
-                          renderPermissionGroup(
-                            addablePermissionsBySystemResource,
-                            selectedPermissionIds,
-                            setSelectedPermissionIds,
-                            (system, resource) =>
-                              userDetail?.permission_codes?.includes(`${system}.${resource}.read`) ?? false
-                          )
-                        )}
-                      </Box>
                     </>
                   )}
 

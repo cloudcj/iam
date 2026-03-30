@@ -179,9 +179,11 @@ def list_users(
 
     elif is_platform_admin or is_platform_viewer:
         # All users across all departments
-        # but cannot see other platform-level users
-        qs = User.objects.exclude(
-            user_roles__role__code__in=HIDDEN_FROM_PLATFORM_ADMIN
+        # but cannot see other platform-level users or self
+        qs = (
+            User.objects
+            .exclude(user_roles__role__code__in=HIDDEN_FROM_PLATFORM_ADMIN)
+            .exclude(id=actor.id)
         )
 
     elif is_dept_admin or is_dept_viewer:
@@ -191,6 +193,7 @@ def list_users(
             User.objects
             .filter(department=actor.department)
             .exclude(user_roles__role__code__in=HIDDEN_FROM_DEPARTMENT_ADMIN)
+            .exclude(id=actor.id)
         )
 
     else:

@@ -92,10 +92,7 @@ from django.shortcuts import get_object_or_404
 
 from apps.identity.models import User
 from apps.access.models import UserPermission
-from apps.access.models.policy import Policy
-from apps.access.models.permission import Permission
 from apps.authz.permissions import HasPermission
-from apps.authz.services.authorization_service import AuthorizationService
 from apps.common.constants.permission_codes import IAMPermissions
 
 MANAGEMENT_SYSTEMS = {"platform", "department"}
@@ -144,35 +141,24 @@ class UserDetailView(APIView):
             if ur.role.code.split(".")[0] not in MANAGEMENT_SYSTEMS
         ]
 
-        all_permission_codes = set(
-            AuthorizationService.get_user_permission_codes(target)
-        )
-
         all_permission_ids = list(
-            Permission.objects
-            .filter(code__in=all_permission_codes)
-            .values_list("id", flat=True)
+            UserPermission.objects
+            .filter(user=target)
+            .values_list("permission_id", flat=True)
+            .distinct()
         )
 
-        direct_perm_ids = set(
+        role_permission_ids = list(
+            UserPermission.objects
+            .filter(user=target, source=UserPermission.SOURCE_ROLE)
+            .values_list("permission_id", flat=True)
+        )
+
+        direct_permission_ids = list(
             UserPermission.objects
             .filter(user=target, source=UserPermission.SOURCE_DIRECT)
             .values_list("permission_id", flat=True)
         )
-
-        covered_perm_ids = set()
-        policies = Policy.objects.prefetch_related("policy_permissions").all()
-        for policy in policies:
-            policy_perm_ids = set(
-                policy.policy_permissions.values_list("permission_id", flat=True)
-            )
-            if policy_perm_ids and policy_perm_ids.issubset(direct_perm_ids):
-                covered_perm_ids.update(policy_perm_ids)
-
-        extra_permission_ids = [
-            str(pid) for pid in direct_perm_ids
-            if pid not in covered_perm_ids
-        ]
 
         return Response({
             "id": str(target.id),
@@ -188,7 +174,7 @@ class UserDetailView(APIView):
             } if target.department else None,
             "management_role": management_role,
             "system_roles": system_roles,
-            "permission_codes": list(all_permission_codes),
             "permission_ids": [str(pid) for pid in all_permission_ids],
-            "extra_permission_ids": extra_permission_ids,
+            "role_permission_ids": [str(pid) for pid in role_permission_ids],
+            "direct_permission_ids": [str(pid) for pid in direct_permission_ids],
         })
