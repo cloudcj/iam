@@ -324,15 +324,17 @@ GET /api/v1/identity/users/<user_id>/
       "system": "tropos"
     }
   ],
-  "permission_codes": ["iam.user.read", "tropos.region.read", "..."],
-  "extra_permission_ids": ["uuid", "..."]
+  "permission_ids": ["uuid", "..."],
+  "role_permission_ids": ["uuid", "..."],
+  "direct_permission_ids": ["uuid", "..."]
 }
 ```
 
 > `management_role` — the user's single management-tier role, or `null` if none.
 > `system_roles` — all product-system roles assigned to the user.
-> `permission_codes` — all resolved permission codes (from roles + direct assignments).
-> `extra_permission_ids` — IDs of permissions assigned directly to the user that are **not** covered by any policy (i.e. truly individual permissions).
+> `permission_ids` — all permission UUIDs the user has (role-derived + direct combined).
+> `role_permission_ids` — subset of `permission_ids` that came from the user's roles (`SOURCE_ROLE`). Used by the frontend to disable those checkboxes in the edit modal.
+> `direct_permission_ids` — subset of `permission_ids` assigned directly to the user (`SOURCE_DIRECT`).
 
 ---
 
@@ -424,9 +426,11 @@ PATCH /api/v1/identity/users/<user_id>/update/
 
 | Code | Reason |
 |---|---|
-| `400` | Duplicate email, invalid roles |
+| `400` | Duplicate email, invalid roles, permission coherence violation |
 | `403` | Role scope violation |
 | `404` | User not found |
+
+> **Permission coherence:** If `permission_ids` includes a non-read permission (e.g. `tropos.user.create`), the corresponding read permission (`tropos.user.read`) must also be included. The backend will reject the request with a `400` if this rule is violated.
 
 ---
 

@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "drf_spectacular", # API schema & docs
 
     # Apps
     "seeder",
@@ -203,9 +204,45 @@ REST_FRAMEWORK = {
         'login': '60/minute',
     },
 
+    # OPENAPI / SCHEMA
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # <-- add this
+
+    # DISABLE OPENAPI ERROR
+    'DISABLE_ERRORS_AND_WARNINGS': True,
+
+
     # CUSTOM EXCEPTION
     # 'EXCEPTION_HANDLER': 'utils.exceptions.custom_exception_handler'
+
+    # 
 }
+
+# --------------------------------------------------
+# OpenAPI / drf-spectacular
+# --------------------------------------------------
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'IAM API',
+    'DESCRIPTION': 'Identity & Access Management service with JWT authentication.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums',
+        'config.spectacular_hooks.assign_tags_postprocess',
+    ],
+
+    # JWT cookie + Bearer auth
+    'SECURITY': [{"BearerAuth": []}],
+    'COMPONENTS': {
+        'securitySchemes': {
+            'BearerAuth': {
+                'type': 'http',
+                'scheme': 'bearer',
+                'bearerFormat': 'JWT',
+            }
+        }
+    },
+}
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
