@@ -29,3 +29,7 @@ class UserRole(models.Model):
     class Meta:
         unique_together = ("user", "role")
         db_table = "iam_user_role"
+        indexes = [
+            models.Index(fields=["user"], name="idx_userrole_user"),
+    ]
+

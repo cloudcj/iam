@@ -144,12 +144,13 @@ class RoleFormOptionsView(APIView):
 
         for r in all_roles:
             system = r.code.split(".")[0]
-            policies = [policy_data(rp) for rp in r.role_policies.all()]
+            role_policies = list(r.role_policies.all())  # evaluated once
+            policies = [policy_data(rp) for rp in role_policies]
             if system in MANAGEMENT_SYSTEMS:
                 if any(r.code.startswith(p) for p in mgmt_prefixes):
                     grants = list(dict.fromkeys(
                         rp.policy.system
-                        for rp in r.role_policies.all()
+                        for rp in role_policies   # ← reuse
                         if rp.policy.system not in META_SYSTEMS
                     ))
                     management_roles.append({

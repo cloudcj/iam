@@ -141,24 +141,39 @@ class UserDetailView(APIView):
             if ur.role.code.split(".")[0] not in MANAGEMENT_SYSTEMS
         ]
 
-        all_permission_ids = list(
-            UserPermission.objects
-            .filter(user=target)
-            .values_list("permission_id", flat=True)
-            .distinct()
-        )
+        # all_permission_ids = list(
+        #     UserPermission.objects
+        #     .filter(user=target)
+        #     .values_list("permission_id", flat=True)
+        #     .distinct()
+        # )
 
-        role_permission_ids = list(
-            UserPermission.objects
-            .filter(user=target, source=UserPermission.SOURCE_ROLE)
-            .values_list("permission_id", flat=True)
-        )
+        # role_permission_ids = list(
+        #     UserPermission.objects
+        #     .filter(user=target, source=UserPermission.SOURCE_ROLE)
+        #     .values_list("permission_id", flat=True)
+        # )
 
-        direct_permission_ids = list(
-            UserPermission.objects
-            .filter(user=target, source=UserPermission.SOURCE_DIRECT)
-            .values_list("permission_id", flat=True)
-        )
+        # direct_permission_ids = list(
+        #     UserPermission.objects
+        #     .filter(user=target, source=UserPermission.SOURCE_DIRECT)
+        #     .values_list("permission_id", flat=True)
+        # )
+
+        user_perms = UserPermission.objects.filter(user=target).values("permission_id", "source")
+
+        all_permission_ids = []
+        role_permission_ids = []
+        direct_permission_ids = []
+
+        for up in user_perms:
+            pid = str(up["permission_id"])
+            all_permission_ids.append(pid)
+            if up["source"] == UserPermission.SOURCE_ROLE:
+                role_permission_ids.append(pid)
+            else:
+                direct_permission_ids.append(pid)
+
 
         return Response({
             "id": str(target.id),

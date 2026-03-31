@@ -163,10 +163,14 @@ def list_users(
     role_code: str | None = None,
 ):
     is_superuser = actor.is_superuser
-    is_platform_admin = has_role(actor, RoleCodes.PLATFORM_ADMIN)
-    is_platform_viewer = has_role(actor, RoleCodes.PLATFORM_VIEWER)
-    is_dept_admin = has_role(actor, RoleCodes.DEPT_ADMIN)
-    is_dept_viewer = has_role(actor, RoleCodes.DEPT_VIEWER)
+    actor_role_codes = set(
+        actor.user_roles.values_list("role__code", flat=True)
+    )
+    is_platform_admin = RoleCodes.PLATFORM_ADMIN in actor_role_codes
+    is_platform_viewer = RoleCodes.PLATFORM_VIEWER in actor_role_codes
+    is_dept_admin = RoleCodes.DEPT_ADMIN in actor_role_codes
+    is_dept_viewer = RoleCodes.DEPT_VIEWER in actor_role_codes
+
 
     # --------------------------------------------------
     # 🔐 VISIBILITY SCOPE — hard limit, cannot be

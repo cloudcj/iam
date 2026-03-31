@@ -41,3 +41,7 @@ class UserPermission(models.Model):
     class Meta:
         unique_together = ("user", "permission")
         db_table = "iam_user_permission"
+        indexes = [
+            models.Index(fields=["user"], name="idx_userperm_user"),
+            models.Index(fields=["user", "source"], name="idx_userperm_user_source"),
+    ]
