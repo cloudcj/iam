@@ -1,1 +1,0 @@
-from .device_serializer import DeviceSerializer,DeviceDetailSerializer, RackPositionSummarySerializer

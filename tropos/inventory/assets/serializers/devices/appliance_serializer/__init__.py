@@ -1,4 +1,0 @@
-from .appliance_read_serializer import ApplianceSummarySerializer, ApplianceDetailSerializer
-from .appliance_write_serializer import ApplianceWriteSerializer
-from .appliance_chassis_serializer import ApplianceChassisSummarySerializer, ApplianceChassisDetailSerializer
-# from server_write_serializer import ServerSummarySerializer

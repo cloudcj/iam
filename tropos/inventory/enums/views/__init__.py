@@ -1,3 +1,0 @@
-from .appliance_type_view import ApplianceTypeView
-from .user_role_view import UserRoleListView
-from .transceiver_type_view import TransceiverTypeView

@@ -1,5 +1,0 @@
-from .device_serializer import DeviceSerializer,DeviceDetailSerializer, RackPositionSummarySerializer
-from .switch_serializer import SwitchSummarySerializer, SwitchWriteSerializer
-from .server_serializer import ServerSummarySerializer, ServerDetailSerializer, ServerWriteSerializer, MemoryUnitReadSerializer, StorageUnitReadSerializer, ProcessorUnitReadSerializer
-from .appliance_serializer import ApplianceSummarySerializer, ApplianceDetailSerializer, ApplianceWriteSerializer
-from .appliance_serializer import ApplianceChassisSummarySerializer, ApplianceChassisDetailSerializer

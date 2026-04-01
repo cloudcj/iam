@@ -1,4 +1,0 @@
-from .interface_serializer import InterfaceDetailSerializer, InterfaceSummarySerializer, TransceiverUnitSerializer
-from .psu_serializer import PowerSupplyUnitSerializer, ShowAllPowerSupplyUnitSerializer
-from .fan_serializer import FanUnitSerializer, ShowAllFanUnitSerializer
-from .compute_serializer import MemoryUnitReadSerializer,MemoryUnitWriteSerializer,StorageUnitReadSerializer,StorageUnitWriteSerializer,ProcessorUnitWriteSerializer,ProcessorUnitReadSerializer

@@ -1,2 +1,0 @@
-from .interface_serializer import InterfaceSummarySerializer, InterfaceDetailSerializer
-from .transceiver_unit_serializer import TransceiverUnitSerializer
