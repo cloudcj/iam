@@ -1,105 +1,110 @@
-# Create User — Form Logic & API Reference
+# Create User
 
 ## Overview
 
-The Create User modal (`CreateUserModal.tsx`) allows platform admins and superusers to create a new user with basic info and roles. **Direct permission assignment is not available at creation time** — the user starts with only role-derived permissions. Extra direct permissions can be added later via Edit User.
+Creates a new user with basic info and roles. Direct permission assignment is not available at creation — the user starts with only role-derived permissions. Extra direct permissions can be added later via Edit User.
+
+**Frontend:** `CreateUserModal.tsx`  
+**Permission required:** `iam.user.create` or superuser
 
 ---
 
-## APIs Used
+## API Reference
 
-### On Modal Open (fetched in parallel)
+### Create User
 
-| Hook | Endpoint | Purpose |
-|---|---|---|
-| `useGetMeQuery()` | `GET /api/v1/me/` | Determine actor role (superuser / platform admin / dept admin) |
-| `useGetDepartmentsQuery()` | `GET /api/v1/department/` | Populate department dropdown |
-
-### When Department is Selected
-
-| Hook | Endpoint | Purpose |
-|---|---|---|
-| `useGetRoleFormOptionsQuery(departmentId)` | `GET /api/v1/access/roles/form-options/?department=:id` | Returns available management roles + system roles scoped to that department, with their policies and `grants_systems` |
-
-### On Save
-
-| Hook | Endpoint | Payload |
-|---|---|---|
-| `useCreateUserMutation()` | `POST /api/v1/identity/users/create/` | `{ username, password, first_name, last_name, email, department, roles: [...roleIds] }` |
-
-> No `permission_ids` is sent at creation. Permissions are derived entirely from roles by the backend.
-
----
-
-## State
-
-```typescript
-const [managementRole, setManagementRole] = useState<string | null>(null)
-const [systemRoles, setSystemRoles] = useState<Record<string, string>>({})
+```
+POST /api/v1/identity/users/create/
 ```
 
-| State | Type | Description |
-|---|---|---|
-| `managementRole` | `string \| null` | Selected management role **code** (e.g. `"department.admin"`) |
-| `systemRoles` | `Record<string, string>` | Map of `{ system: roleId }` (e.g. `{ tropos: "uuid-123" }`) |
+**Auth:** JWT cookie or `Authorization: Bearer <token>`  
+**Permission:** `iam.user.create` or superuser
 
-No permission state — the form does not manage direct permissions.
+#### Request Body
+
+```json
+{
+  "username": "jdoe",
+  "password": "securepassword",
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "jdoe@example.com",
+  "department": "uuid",
+  "roles": ["uuid", "uuid"]
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `username` | string | Yes | Must be unique |
+| `password` | string | Yes | Min 8 characters |
+| `first_name` | string | Yes | |
+| `last_name` | string | Yes | |
+| `email` | string | No | Must be unique if provided |
+| `department` | UUID | Yes (superuser / platform admin) | Auto-set to actor's dept for dept admin |
+| `roles` | UUID[] | Yes | At least one role required |
+
+> `permission_ids` is not accepted at creation. Permissions are derived from roles by the backend automatically.
+
+#### Response `201 Created`
+
+```json
+{
+  "id": "uuid",
+  "username": "jdoe",
+  "email": "jdoe@example.com",
+  "department": {
+    "id": "uuid",
+    "code": "CLOUD_PLATFORM",
+    "name": "Cloud Platform"
+  }
+}
+```
+
+#### Error Responses
+
+| Status | Reason |
+|---|---|
+| `400` | Validation error (missing fields, duplicate username/email) |
+| `403` | Actor lacks `iam.user.create` permission, or tried to assign a restricted role |
 
 ---
 
-## Form Fields
+### Supporting Endpoints (used by the form)
 
-| Field | Required | Notes |
-|---|---|---|
-| `username` | Yes | Must be unique |
-| `password` | Yes | Min 8 characters |
-| `first_name` | Yes | |
-| `last_name` | Yes | |
-| `email` | Yes | Must be unique |
-| `department` | Yes (superuser/platform admin) | Auto-set for dept admin |
-
----
-
-## Role Selection Flow
-
-### 1. Department Selected
-Triggers `useGetRoleFormOptionsQuery(departmentId)` — fetches roles scoped to the department.
-
-### 2. Management Role Selected
-```typescript
-// Role with grants_systems (e.g. department.admin grants tropos, ghidora)
-→ auto-selects matching system roles using admin/viewer suffix:
-    tropos.admin  if role ends with ".admin"
-    tropos.viewer if role ends with ".viewer"
-
-// Role cleared
-→ systemRoles reset to {}
+#### Get Departments
 ```
-
-### 3. System Roles
-Each system in `allowedSystems` gets its own dropdown. The actor can override the auto-selected role or pick manually.
-
-```typescript
-// allowedSystems is determined by:
-grants_systems from managementRole  (if present)
-selectedDept.allowed_systems        (fallback)
+GET /api/v1/department/
 ```
+Populates the department dropdown.
 
----
-
-## Policy Preview
-
-Once roles are selected, the form shows a **read-only policy preview** (`PolicyCard`) listing which policies will be granted:
-
-```typescript
-// Deduplicates policies from all selected roles
-const resolvedPolicies = [
-  ...selectedMgmtRole.policies,         // shown in blue
-  ...systemRoles[each].policies,        // shown in teal
-]
+#### Get Role Form Options
 ```
+GET /api/v1/access/roles/form-options/?department=<uuid>
+```
+Returns management roles and system roles scoped to the selected department, including their policies and `grants_systems`.
 
-This gives the actor visibility into what permissions the user will receive before submitting. The note under the list reads: *"These policies are auto-assigned from selected roles and cannot be changed at creation."*
+```json
+{
+  "management_roles": [
+    {
+      "id": "uuid",
+      "code": "department.admin",
+      "name": "Department Admin",
+      "system": "iam",
+      "grants_systems": ["tropos"],
+      "policies": [...]
+    }
+  ],
+  "system_roles": {
+    "tropos": [
+      { "id": "uuid", "code": "tropos.admin", "name": "Tropos Admin", ... }
+    ]
+  }
+}
+```
 
 ---
 
@@ -113,53 +118,93 @@ This gives the actor visibility into what permissions the user will receive befo
 
 ---
 
-## On Save
+## Backend Reference
+
+### Service (`apps/identity/services/user/create.py`)
+
+`create_user()` performs:
+1. Validates actor permissions for the requested roles
+2. Resolves `department` — required for superuser/platform admin, auto-set for dept admin
+3. Creates the `User` record
+4. Bulk-creates `UserRole` entries (visibility/management)
+5. Bulk-creates `UserPermission` entries with `source=SOURCE_ROLE` (derived from roles)
+
+No `SOURCE_DIRECT` permissions are created at this point.
+
+### Serializer (`apps/identity/serializers/user/create.py`)
+
+```python
+username      = CharField()
+password      = CharField(write_only=True)
+first_name    = CharField()
+last_name     = CharField()
+email         = EmailField(required=False)
+department    = UUIDField(required=False)
+roles         = ListField(child=UUIDField(), required=True, allow_empty=False)
+```
+
+### Audit Log
+
+On success, logs `user.create` with `detail: { "username": "<username>" }`.
+
+---
+
+## Frontend Reference
+
+### RTK Query Hooks
+
+| Hook | Endpoint | When |
+|---|---|---|
+| `useGetMeQuery()` | `GET /api/v1/me/` | On mount — determines actor role |
+| `useGetDepartmentsQuery()` | `GET /api/v1/department/` | On mount — populates department dropdown |
+| `useGetRoleFormOptionsQuery(deptId)` | `GET /api/v1/access/roles/form-options/?department=:id` | When department is selected |
+| `useCreateUserMutation()` | `POST /api/v1/identity/users/create/` | On save |
+
+### State
+
+```typescript
+const [managementRole, setManagementRole] = useState<string | null>(null)
+const [systemRoles, setSystemRoles] = useState<Record<string, string>>({})
+```
+
+| State | Type | Description |
+|---|---|---|
+| `managementRole` | `string \| null` | Selected management role code |
+| `systemRoles` | `Record<string, string>` | `{ system: roleId }` — one role per system |
+
+No permission state — the form does not manage direct permissions.
+
+### Role Selection Flow
+
+1. **Department selected** → fires `useGetRoleFormOptionsQuery(deptId)`
+2. **Management role selected** → auto-selects system roles using admin/viewer suffix matching
+3. **Management role cleared** → `systemRoles` reset to `{}`
+4. **System roles** → each allowed system gets its own dropdown, actor can override
+
+`allowedSystems` is determined by `grants_systems` from the management role (or `department.allowed_systems` as fallback).
+
+### Policy Preview
+
+Once roles are selected, a read-only `PolicyCard` shows which policies will be granted — deduped across all selected roles. Gives the actor visibility before submitting.
+
+### On Save
 
 ```typescript
 await createUser({
   username, password, first_name, last_name, email,
   department: deptId,
   roles: [...managementRoleId, ...systemRoleIds],
-  // no permission_ids
 })
 ```
 
-The backend (`create_user` service) derives `SOURCE_ROLE` permissions automatically from the submitted roles. No `SOURCE_DIRECT` permissions are created at this point.
-
 ---
 
-## Full Flow
-
-```
-useGetMeQuery()
-    → actor is platform.admin
-    → isDeptAdmin = false  (department dropdown shown)
-
-useGetDepartmentsQuery()
-    → populates department Select
-
-Department selected
-    → useGetRoleFormOptionsQuery(deptId) fires
-    → returns management_roles + system_roles scoped to dept
-
-Management role selected
-    → auto-selects system roles (admin/viewer suffix)
-    → resolvedPolicies recomputes  →  PolicyCard preview updates
-
-On save
-    → POST sends roles[] only
-    → backend derives SOURCE_ROLE permissions from roles
-    → no direct permissions created
-```
-
----
-
-## Difference from Edit User
+## Comparison with Edit User
 
 | Feature | Create | Edit |
 |---|---|---|
-| Username field | Editable | Only superuser can edit |
+| Username field | Editable | Superuser only |
 | Password field | Required | Not shown (use Reset Password) |
 | Permission checkboxes | Not shown | Shown for superuser / platform admin |
 | Direct permission assignment | No | Yes |
-| Init data from server | None needed | Loads `userDetail` for existing perms |
+| Init data from server | None | Loads `userDetail` for existing perms |
