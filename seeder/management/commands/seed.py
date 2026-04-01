@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 # from ...seeder_logic.seed_user import seed_super_admin
 # from ...seeder_logic.rbac import seed_rbac
 
-from inventory.seeder.seeder_logic import (
+from seeder.seeder_logic import (
     seed_permissions,
     seed_policies,
     seed_policy_permissions,

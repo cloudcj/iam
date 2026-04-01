@@ -70,5 +70,5 @@ cd projects
 ```bash
 git clone https://<your-token>@github.com/cict-cloud/django-playground.git
 ```
-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
+<your-token-here>
 > Replace the `<your-token>` with your token
