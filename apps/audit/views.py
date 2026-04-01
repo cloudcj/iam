@@ -22,6 +22,12 @@ class AuditLogListView(APIView):
         date_from = request.query_params.get("date_from")
         date_to = request.query_params.get("date_to")
 
+        action_category = request.query_params.get("action_category")
+        if action_category == "auth":
+            qs = qs.filter(action__startswith="auth.")
+        elif action_category == "activity":
+            qs = qs.exclude(action__startswith="auth.")
+
         if action:
             qs = qs.filter(action=action)
         if status:

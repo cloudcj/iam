@@ -41,7 +41,7 @@ export interface UserListParams {
   search?: string
   is_active?: boolean
   department?: string
-  role?: string
+  roles?: string[]
 }
 
 export interface PaginatedUsers {
@@ -157,6 +157,7 @@ export interface AuditLog {
 
 export interface AuditLogParams {
   action?: string
+  action_category?: string
   status?: string
   target_type?: string
   date_from?: string

@@ -25,7 +25,7 @@
 # #     def get(self, request):
 # #         users = list_users(
 # #             department_code=request.query_params.get("department"),
-# #             role_code=request.query_params.get("role"),
+# #             role_codes=request.query_params.getlist("role") or None,
 # #             is_active=request.query_params.get("is_active"),
 # #             search=request.query_params.get("search"),
 # #         )
@@ -61,7 +61,7 @@
 #         users = list_users(
 #             actor=request.user,
 #             department_code=request.query_params.get("department"),
-#             role_code=request.query_params.get("role"),
+#             role_codes=request.query_params.getlist("role") or None,
 #             is_active=parse_bool(
 #                 request.query_params.get("is_active")
 #             ),
@@ -97,7 +97,7 @@ class ListUsersView(APIView):
             search=request.query_params.get("search"),
             is_active=parse_bool(request.query_params.get("is_active")),
             department_id=request.query_params.get("department"),
-            role_code=request.query_params.get("role"),
+            role_codes=request.query_params.getlist("role") or None,
         )
 
         paginator = CustomPagination()

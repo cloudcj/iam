@@ -1,15 +1,18 @@
 import { useState } from "react"
-import { Title, Group, Select, TextInput, Badge, Text, Stack, Button, Modal, ActionIcon, Code, ScrollArea } from "@mantine/core"
+import { Title, Group, Select, TextInput, Badge, Text, Stack, Button, Modal, ActionIcon, Code, ScrollArea, Tabs } from "@mantine/core"
 import { IconEye } from "@tabler/icons-react"
 import { DataTable } from "mantine-datatable"
 import { useGetAuditLogsQuery, useGetMeQuery } from "../services/iamApi"
 import type { AuditLog, AuditLogParams } from "../types"
 
-const ACTION_LABELS: Record<string, string> = {
-  "auth.login":            "Login",
-  "auth.login_failed":     "Login Failed",
-  "auth.logout":           "Logout",
-  "auth.token_refresh":    "Token Refresh",
+const AUTH_ACTION_LABELS: Record<string, string> = {
+  "auth.login":         "Login",
+  "auth.login_failed":  "Login Failed",
+  "auth.logout":        "Logout",
+  "auth.token_refresh": "Token Refresh",
+}
+
+const ACTIVITY_ACTION_LABELS: Record<string, string> = {
   "user.create":           "User Created",
   "user.update":           "User Updated",
   "user.delete":           "User Deleted",
@@ -20,30 +23,43 @@ const ACTION_LABELS: Record<string, string> = {
   "department.delete":     "Department Deleted",
 }
 
-const ACTION_OPTIONS = [
-  { value: "", label: "All Actions" },
-  ...Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label })),
+const ALL_ACTION_LABELS = { ...AUTH_ACTION_LABELS, ...ACTIVITY_ACTION_LABELS }
+
+const AUTH_ACTION_OPTIONS = [
+  { value: "", label: "All" },
+  ...Object.entries(AUTH_ACTION_LABELS).map(([value, label]) => ({ value, label })),
+]
+
+const ACTIVITY_ACTION_OPTIONS = [
+  { value: "", label: "All" },
+  ...Object.entries(ACTIVITY_ACTION_LABELS).map(([value, label]) => ({ value, label })),
 ]
 
 const PAGE_SIZE = 20
 
-export default function AuditLogPage() {
-  const { data: me } = useGetMeQuery()
+function LogTable({
+  actionOptions,
+  actionCategory,
+  canView,
+}: {
+  actionOptions: { value: string; label: string }[]
+  actionCategory: "auth" | "activity"
+  canView: boolean
+}) {
   const [page, setPage] = useState(1)
-  const [filters, setFilters] = useState<AuditLogParams>({})
+  const [filters, setFilters] = useState<Omit<AuditLogParams, "action_category" | "limit" | "offset">>({})
   const [detailLog, setDetailLog] = useState<AuditLog | null>(null)
-
-  const canView = me?.is_superuser || me?.permissions.includes("iam.audit.read")
 
   const params: AuditLogParams = {
     ...filters,
+    action_category: actionCategory,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   }
 
   const { data, isLoading } = useGetAuditLogsQuery(params, { skip: !canView })
 
-  const setFilter = (key: keyof AuditLogParams, value: string) => {
+  const setFilter = (key: keyof typeof filters, value: string) => {
     setPage(1)
     setFilters((prev) => ({ ...prev, [key]: value || undefined }))
   }
@@ -56,22 +72,13 @@ export default function AuditLogPage() {
   const getTargetName = (log: AuditLog) =>
     log.detail?.name ?? log.detail?.username ?? log.detail?.target ?? null
 
-  if (!canView) {
-    return <Text c="red">You do not have permission to view audit logs.</Text>
-  }
-
   return (
     <>
-      <Group justify="space-between" mb="md">
-        <Title order={3}>Audit Logs</Title>
-        <Button variant="subtle" size="xs" onClick={clearFilters}>Clear Filters</Button>
-      </Group>
-
       <Stack gap="sm" mb="md">
         <Group>
           <Select
             placeholder="All Actions"
-            data={ACTION_OPTIONS}
+            data={actionOptions}
             value={filters.action ?? ""}
             onChange={(v) => setFilter("action", v ?? "")}
             clearable
@@ -101,6 +108,7 @@ export default function AuditLogPage() {
             onChange={(e) => setFilter("date_to", e.currentTarget.value)}
             style={{ width: 180 }}
           />
+          <Button variant="subtle" size="xs" onClick={clearFilters}>Clear</Button>
         </Group>
       </Stack>
 
@@ -111,7 +119,7 @@ export default function AuditLogPage() {
         highlightOnHover
         fetching={isLoading}
         minHeight={150}
-        noRecordsText="No audit logs found"
+        noRecordsText="No logs found"
         records={data?.results ?? []}
         totalRecords={data?.count ?? 0}
         recordsPerPage={PAGE_SIZE}
@@ -149,7 +157,7 @@ export default function AuditLogPage() {
             accessor: "action",
             title: "Action",
             width: 180,
-            render: (log) => ACTION_LABELS[log.action] ?? log.action,
+            render: (log) => ALL_ACTION_LABELS[log.action] ?? log.action,
           },
           {
             accessor: "target",
@@ -218,7 +226,7 @@ export default function AuditLogPage() {
         onClose={() => setDetailLog(null)}
         title={
           <Stack gap={2}>
-            <Text fw={600} size="sm">{detailLog ? ACTION_LABELS[detailLog.action] ?? detailLog.action : ""}</Text>
+            <Text fw={600} size="sm">{detailLog ? ALL_ACTION_LABELS[detailLog.action] ?? detailLog.action : ""}</Text>
             <Text size="xs" c="dimmed">{detailLog ? new Date(detailLog.timestamp).toLocaleString() : ""}</Text>
           </Stack>
         }
@@ -231,6 +239,46 @@ export default function AuditLogPage() {
           }, null, 2)}</Code>
         </ScrollArea>
       </Modal>
+    </>
+  )
+}
+
+export default function AuditLogPage() {
+  const { data: me } = useGetMeQuery()
+  const canView = me?.is_superuser || me?.permissions.includes("iam.audit.read")
+
+  if (!canView) {
+    return <Text c="red">You do not have permission to view audit logs.</Text>
+  }
+
+  return (
+    <>
+      <Group justify="space-between" mb="md">
+        <Title order={3}>Audit Logs</Title>
+      </Group>
+
+      <Tabs defaultValue="auth">
+        <Tabs.List mb="md">
+          <Tabs.Tab value="auth">Login Activity</Tabs.Tab>
+          <Tabs.Tab value="activity">Activity Log</Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="auth">
+          <LogTable
+            actionOptions={AUTH_ACTION_OPTIONS}
+            actionCategory="auth"
+            canView={!!canView}
+          />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="activity">
+          <LogTable
+            actionOptions={ACTIVITY_ACTION_OPTIONS}
+            actionCategory="activity"
+            canView={!!canView}
+          />
+        </Tabs.Panel>
+      </Tabs>
     </>
   )
 }

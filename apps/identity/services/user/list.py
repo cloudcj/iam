@@ -160,7 +160,7 @@ def list_users(
     search: str | None = None,
     is_active: bool | None = None,
     department_id: str | None = None,
-    role_code: str | None = None,
+    role_codes: list[str] | None = None,
 ):
     is_superuser = actor.is_superuser
     actor_role_codes = set(
@@ -226,8 +226,8 @@ def list_users(
         if is_superuser or is_platform_admin or is_platform_viewer:
             qs = qs.filter(department__id=department_id)
 
-    if role_code:
-        qs = qs.filter(user_roles__role__code=role_code)
+    if role_codes:
+        qs = qs.filter(user_roles__role__code__in=role_codes)
 
     return (
         qs

@@ -74,7 +74,14 @@ export const iamApi = createApi({
 
     // Users
     getUsers: builder.query<PaginatedUsers, UserListParams>({
-      query: (params) => ({ url: '/identity/users/', params }),
+      query: ({ roles, ...rest }) => {
+        const search = new URLSearchParams()
+        Object.entries(rest).forEach(([k, v]) => {
+          if (v !== undefined && v !== null) search.set(k, String(v))
+        })
+        roles?.forEach((r) => search.append('role', r))
+        return `/identity/users/?${search.toString()}`
+      },
       providesTags: ['User'],
     }),
     getUser: builder.query<UserDetail, string>({

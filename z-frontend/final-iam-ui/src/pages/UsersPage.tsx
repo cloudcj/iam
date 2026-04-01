@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Title, Button, Badge, Group, ActionIcon, TextInput, Select, Stack } from "@mantine/core";
+import { Title, Button, Badge, Group, ActionIcon, TextInput, Select, MultiSelect, Stack } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { DataTable } from "mantine-datatable";
 import { IconPlus, IconEye, IconEdit, IconTrash, IconSearch } from "@tabler/icons-react";
@@ -23,7 +23,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [departmentFilter, setDepartmentFilter] = useState<string | null>(null);
-  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [debouncedSearch] = useDebouncedValue(search, 300);
 
@@ -36,7 +36,7 @@ export default function UsersPage() {
   // Reset to page 1 whenever filters/search change
   const setStatusFilterAndReset = (v: string | null) => { setStatusFilter(v); setPage(1); };
   const setDepartmentFilterAndReset = (v: string | null) => { setDepartmentFilter(v); setPage(1); };
-  const setRoleFilterAndReset = (v: string | null) => { setRoleFilter(v); setPage(1); };
+  const setRoleFilterAndReset = (v: string[]) => { setRoleFilter(v); setPage(1); };
 
   const { data: me } = useGetMeQuery();
   const { data: departments } = useGetDepartmentsQuery();
@@ -50,7 +50,7 @@ export default function UsersPage() {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(statusFilter !== null ? { is_active: statusFilter === "true" } : {}),
     ...(departmentFilter ? { department: departmentFilter } : {}),
-    ...(roleFilter ? { role: roleFilter } : {}),
+    ...(roleFilter.length > 0 ? { roles: roleFilter } : {}),
   });
 
   const canCreate =
@@ -133,7 +133,7 @@ export default function UsersPage() {
               onChange={setDepartmentFilterAndReset}
             />
           )}
-          <Select
+          <MultiSelect
             placeholder="Role"
             clearable
             searchable
