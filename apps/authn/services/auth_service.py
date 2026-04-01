@@ -1,23 +1,33 @@
+from django.core.cache import cache
 from django.contrib.auth import authenticate, get_user_model
 from django.core.exceptions import PermissionDenied
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from apps.authn.blacklist.service import blacklist_token
-
 from apps.authn.tokens.service import issue_user_tokens
+from apps.audit.services.services import log_action
+from apps.audit.models import AuditLog
 
 User = get_user_model()
 
+LOCKOUT_PREFIX = "iam:lockout:"
+LOCKOUT_MAX = 5
+LOCKOUT_TTL = 15 * 60  # 15 minutes
+
 
 def login(*, request, username: str, password: str):
-    # try:
-    #     user_obj = User.objects.get(username=username)
-    # except User.DoesNotExist:
-    #     raise PermissionDenied("Invalid credentials")
+    key = f"{LOCKOUT_PREFIX}{username}"
+    attempts = cache.get(key, 0)
 
-    # if not user_obj.is_active:
-    #     raise PermissionDenied("Account is deactivated")
+    if attempts >= LOCKOUT_MAX:
+        log_action(
+            action=AuditLog.Action.AUTH_ACCOUNT_LOCKED,
+            status=AuditLog.Status.FAILURE,
+            detail={"username": username},
+            request=request,
+        )
+        raise PermissionDenied("Account temporarily locked. Try again later after 15 minutes.")
 
     user = authenticate(
         request=request,
@@ -28,12 +38,15 @@ def login(*, request, username: str, password: str):
     if not user:
         # One single generic message for ALL failures.
         # Wrong password, wrong username, doesn't matter — same response.
+        cache.set(key, attempts + 1, timeout=LOCKOUT_TTL)
         raise PermissionDenied("Invalid credentials")
 
     if not user.is_active:
         # Even inactive accounts get the same generic message.
         # Never tell the attacker the account exists but is disabled.
         raise PermissionDenied("Invalid credentials")
+
+    cache.delete(key)  # reset on successful login
 
     tokens = issue_user_tokens(user=user)
 

@@ -201,7 +201,7 @@ REST_FRAMEWORK = {
 
     # THROTTLING
     'DEFAULT_THROTTLE_RATES': {
-        'login': '60/minute',
+        'login': '30/minute',
     },
 
     # OPENAPI / SCHEMA

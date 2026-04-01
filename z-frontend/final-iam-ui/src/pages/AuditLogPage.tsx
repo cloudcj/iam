@@ -10,6 +10,7 @@ const AUTH_ACTION_LABELS: Record<string, string> = {
   "auth.login_failed":  "Login Failed",
   "auth.logout":        "Logout",
   "auth.token_refresh": "Token Refresh",
+  "auth.account_locked": "Account Locked",
 }
 
 const ACTIVITY_ACTION_LABELS: Record<string, string> = {

@@ -14,6 +14,7 @@ class AuditLog(models.Model):
         AUTH_LOGIN_FAILED  = "auth.login_failed"
         AUTH_LOGOUT        = "auth.logout"
         AUTH_TOKEN_REFRESH = "auth.token_refresh"
+        AUTH_ACCOUNT_LOCKED = "auth.account_locked"
 
         # User management
         USER_CREATE         = "user.create"
