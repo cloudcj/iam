@@ -68,10 +68,10 @@ IAM_SERVICE = make_system(
             "update",
             "delete"
         ]),
-        "approval": ("Approval Management", [
-            "read",
-            "update",
-        ]),
+        # "approval": ("Approval Management", [
+        #     "read",
+        #     "update",
+        # ]),
         "audit": ("Audit logs", [
             "read",
         ]),

@@ -101,23 +101,23 @@ _POLICIES = [
     # --------------------------------------------------
     # Approval resource (used by dept roles)
     # --------------------------------------------------
-    Policy(
-        code="iam.approval.read_only",
-        name="IAM Approval – Read Only",
-        system="iam",
-        resource="approval",
-        permissions=("iam.approval.read",),
-    ),
-    Policy(
-        code="iam.approval.full",
-        name="IAM Approval – Manage",
-        system="iam",
-        resource="approval",
-        permissions=(
-            "iam.approval.read",
-            "iam.approval.update",
-        ),
-    ),
+    # Policy(
+    #     code="iam.approval.read_only",
+    #     name="IAM Approval – Read Only",
+    #     system="iam",
+    #     resource="approval",
+    #     permissions=("iam.approval.read",),
+    # ),
+    # Policy(
+    #     code="iam.approval.full",
+    #     name="IAM Approval – Manage",
+    #     system="iam",
+    #     resource="approval",
+    #     permissions=(
+    #         "iam.approval.read",
+    #         "iam.approval.update",
+    #     ),
+    # ),
     # --------------------------------------------------
     # Audit log resource (used by dept roles)
     # --------------------------------------------------
@@ -127,7 +127,7 @@ _POLICIES = [
         system="iam",
         resource="audit",
         permissions=("iam.audit.read",),
-    )
+    ),
 ]
 
 IAM_POLICIES = {p.code: p for p in _POLICIES}
