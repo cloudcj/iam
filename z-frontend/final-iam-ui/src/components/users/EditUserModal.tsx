@@ -25,7 +25,7 @@ export default function EditUserModal({ user, onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [managementRole, setManagementRole] = useState<string | null>(null)
   const [systemRoles, setSystemRoles] = useState<Record<string, string>>({})
-  const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([])
+  const [directPermIds, setDirectPermIds] = useState<string[]>([])
   const [showExtraPerms, setShowExtraPerms] = useState(false)
   const initializedRef = useRef(false)
 
@@ -113,18 +113,21 @@ export default function EditUserModal({ user, onClose }: Props) {
     setSystemRoles(sysRoles)
 
     if (!initializedRef.current && userDetail && allPermissions) {
-      if (isSuperuser || isPlatformAdmin) {
-        setSelectedPermissionIds(userDetail.permission_ids)
+      if (isSuperuser) {
+        setDirectPermIds(userDetail.permission_ids)
+      } else if (isPlatformAdmin) {
+        setDirectPermIds(userDetail.direct_permission_ids)
       }
       initializedRef.current = true
     }
   }, [user, userDetail, allPermissions])
 
-  // Permissions that come from roles — pre-checked but disabled for platform admin
+  // Permissions that come from currently selected roles — pre-checked but disabled for platform admin.
+  // Recomputed dynamically so changing a role immediately reflects in the permission checkboxes.
   const rolePermIds = useMemo(() => {
-    if (!userDetail || !isPlatformAdmin) return new Set<string>()
-    return new Set(userDetail.role_permission_ids)
-  }, [userDetail, isPlatformAdmin])
+    if (!isPlatformAdmin) return new Set<string>()
+    return new Set(computePermissionsFromRoles(managementRole, systemRoles))
+  }, [isPlatformAdmin, managementRole, systemRoles, computePermissionsFromRoles])
 
   const selectedMgmtRole = formOptions?.management_roles.find((r) => r.code === managementRole)
   const grantsForCurrentMgmt = selectedMgmtRole?.grants_systems
@@ -197,7 +200,7 @@ export default function EditUserModal({ user, onClose }: Props) {
     form.reset()
     setManagementRole(null)
     setSystemRoles({})
-    setSelectedPermissionIds([])
+    setDirectPermIds([])
     setShowExtraPerms(false)
     initializedRef.current = false
   }
@@ -214,9 +217,7 @@ export default function EditUserModal({ user, onClose }: Props) {
     const allRoleIds = [...(managementRoleId ? [managementRoleId] : []), ...systemRoleIds]
     if (allRoleIds.length === 0) { setError("User must have at least one role"); return }
     if (allowedSystems.length > 0 && systemRoleIds.length === 0) { setError("At least one system role is required"); return }
-    const finalPermissionIds = isSuperuser
-      ? selectedPermissionIds
-      : selectedPermissionIds.filter((id) => !rolePermIds.has(id))
+    const finalPermissionIds = directPermIds
     try {
       await updateUser({
         id: user.id,
@@ -251,7 +252,7 @@ export default function EditUserModal({ user, onClose }: Props) {
           <Stack gap="xs">
             {Object.entries(resources).map(([resource, perms]) => {
               const readPerm = perms.find((p) => p.action === "read")
-              const readChecked = readPerm ? checkedIds.includes(readPerm.id) : false
+              const readChecked = readPerm ? (rolePermIds.has(readPerm.id) || checkedIds.includes(readPerm.id)) : false
               return (
                 <Paper key={resource} withBorder p="sm">
                   <Text size="xs" fw={600} c="dimmed" mb={6} tt="capitalize">{resource}</Text>
@@ -261,7 +262,7 @@ export default function EditUserModal({ user, onClose }: Props) {
                         key={p.id}
                         label={p.action}
                         description={p.code}
-                        checked={checkedIds.includes(p.id)}
+                        checked={rolePermIds.has(p.id) || checkedIds.includes(p.id)}
                         disabled={disabledIds?.has(p.id) || (p.action !== "read" && !readChecked)}
                         onChange={() => togglePermission(p, checkedIds, setter)}
                       />
@@ -349,13 +350,23 @@ export default function EditUserModal({ user, onClose }: Props) {
                     }
                     setSystemRoles(autoSelected)
                     if (isSuperuser) {
-                      setSelectedPermissionIds(computePermissionsFromRoles(val, autoSelected))
+                      setDirectPermIds(computePermissionsFromRoles(val, autoSelected))
+                    } else if (isPlatformAdmin) {
+                      setDirectPermIds([])
                     }
                   } else if (!val) {
                     setSystemRoles({})
-                    if (isSuperuser) setSelectedPermissionIds([])
-                  } else if (isSuperuser) {
-                    setSelectedPermissionIds(computePermissionsFromRoles(val, systemRoles))
+                    if (isSuperuser) {
+                      setDirectPermIds([])
+                    } else if (isPlatformAdmin) {
+                      setDirectPermIds([])
+                    }
+                  } else {
+                    if (isSuperuser) {
+                      setDirectPermIds(computePermissionsFromRoles(val, systemRoles))
+                    } else if (isPlatformAdmin) {
+                      setDirectPermIds([])
+                    }
                   }
                 }}
                 clearable
@@ -383,11 +394,13 @@ export default function EditUserModal({ user, onClose }: Props) {
                           if (isSuperuser) {
                             const oldPerms = new Set(computePermissionsForRole(oldRoleId))
                             const newPerms = computePermissionsForRole(val ?? "")
-                            setSelectedPermissionIds((prev) => {
+                            setDirectPermIds((prev) => {
                               const base = prev.filter((id) => !oldPerms.has(id))
                               const toAdd = newPerms.filter((id) => !base.includes(id))
                               return [...base, ...toAdd]
                             })
+                          } else if (isPlatformAdmin) {
+                            setDirectPermIds([])
                           }
                         }}
                         clearable
@@ -422,8 +435,8 @@ export default function EditUserModal({ user, onClose }: Props) {
                       </Text>
                       {renderPermissionGroup(
                         allPermissionsBySystemResource,
-                        selectedPermissionIds,
-                        setSelectedPermissionIds,
+                        directPermIds,
+                        setDirectPermIds,
                         isPlatformAdmin ? rolePermIds : undefined
                       )}
                     </>

@@ -34,11 +34,12 @@ function StatCard({ label, value, icon: Icon, color, loading }: StatCardProps) {
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { data: me } = useGetMeQuery()
-  const { data: users, isLoading: usersLoading } = useGetUsersQuery()
+  const { data: users, isLoading: usersLoading } = useGetUsersQuery({})
+  const { data: activeUsersData } = useGetUsersQuery({ is_active: true })
   const { data: departments, isLoading: deptsLoading } = useGetDepartmentsQuery()
 
-  const totalUsers = users?.length
-  const activeUsers = users?.filter((u) => u.is_active).length
+  const totalUsers = users?.count
+  const activeUsers = activeUsersData?.count
   const totalDepartments = departments?.length
 
   return (

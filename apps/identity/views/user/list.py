@@ -6,7 +6,7 @@
 # # from apps.authz.permissions import HasPermission
 # # from apps.identity.services.user import list_users
 
-# # from seeder.constants import IAMPermissions
+# # from inventory.seeder.constants import IAMPermissions
 
 
 # # from rest_framework.views import APIView
@@ -44,7 +44,7 @@
 # # from apps.identity.services.user.list import list_users
 # from apps.identity.serializers.user.list import UserListSerializer
 # from apps.authz.permissions import HasPermission
-# # from seeder.constants import IAMPermissions
+# # from inventory.seeder.constants import IAMPermissions
 
 
 # def parse_bool(value):
@@ -72,14 +72,13 @@
 #         return Response(serializer.data, status=status.HTTP_200_OK)
 
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
 
 from apps.identity.services.user.list import list_users
 from apps.identity.serializers.user.list import UserListSerializer
 from apps.authz.permissions import HasPermission
 from apps.common.constants.permission_codes import IAMPermissions
+from apps.common.pagination import CustomPagination
 
 
 def parse_bool(value):
@@ -101,5 +100,7 @@ class ListUsersView(APIView):
             role_code=request.query_params.get("role"),
         )
 
-        serializer = UserListSerializer(users, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = CustomPagination()
+        page = paginator.paginate_queryset(users, request)
+        serializer = UserListSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)

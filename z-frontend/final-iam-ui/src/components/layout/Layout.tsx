@@ -1,4 +1,4 @@
-import { AppShell, NavLink, Text, Box } from '@mantine/core'
+import { AppShell, NavLink, Text, Box, Divider } from '@mantine/core'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   IconDashboard,
@@ -7,17 +7,28 @@ import {
   IconLogout,
   IconClipboardCheck,
   IconUserCircle,
-  IconShieldCheck 
+  IconShieldCheck,
+  IconServer,
+  IconMap,
+  IconLayoutGrid,
+  IconDevices,
 } from '@tabler/icons-react'
 import { useLogoutMutation } from '../../services/iamApi'
 
-const navItems = [
+const iamNavItems = [
   { label: 'Dashboard', icon: IconDashboard, path: '/' },
   { label: 'Users', icon: IconUsers, path: '/users' },
   { label: 'Departments', icon: IconBuilding, path: '/departments' },
   { label: 'Approval Management', icon: IconClipboardCheck, path: '/approvals' },
   { label: 'Profile', icon: IconUserCircle, path: '/profile' },
   { label: 'Audit Logs', icon: IconShieldCheck, path: '/audit' },
+]
+
+const troposNavItems = [
+  { label: 'Dashboard', icon: IconServer, path: '/tropos' },
+  { label: 'Regions', icon: IconMap, path: '/tropos/regions' },
+  { label: 'Racks', icon: IconLayoutGrid, path: '/tropos/racks' },
+  { label: 'Devices', icon: IconDevices, path: '/tropos/devices' },
 ]
 
 export default function Layout() {
@@ -37,12 +48,23 @@ export default function Layout() {
           <Text fw={700} size="lg">IAM Admin</Text>
         </Box>
         <Box style={{ flex: 1 }}>
-          {navItems.map((item) => (
+          {iamNavItems.map((item) => (
             <NavLink
               key={item.path}
               label={item.label}
               leftSection={<item.icon size={18} />}
               active={location.pathname === item.path}
+              onClick={() => navigate(item.path)}
+              mb={4}
+            />
+          ))}
+          <Divider my="sm" label="Tropos" labelPosition="left" />
+          {troposNavItems.map((item) => (
+            <NavLink
+              key={item.path}
+              label={item.label}
+              leftSection={<item.icon size={18} />}
+              active={location.pathname === item.path || (item.path !== '/tropos' && location.pathname.startsWith(item.path))}
               onClick={() => navigate(item.path)}
               mb={4}
             />

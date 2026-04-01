@@ -1,4 +1,4 @@
-# from seeder.constants import RoleCodes
+# from inventory.seeder.constants import RoleCodes
 
 
 # def has_role(user, role_code: str) -> bool:

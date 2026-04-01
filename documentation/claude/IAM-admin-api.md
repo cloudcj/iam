@@ -241,6 +241,17 @@ GET /api/v1/identity/users/
 ```
 **Permission required:** `iam.user.read`
 
+**Query Parameters:**
+
+| Param | Type | Description |
+|---|---|---|
+| `page` | integer | Page number (default: `1`) |
+| `per_page` | integer | Results per page (default: `10`, max: `100`) |
+| `search` | string | Filter by username or email (partial match) |
+| `is_active` | boolean | Filter by active status (`true` / `false`) |
+| `department` | uuid | Filter by department ID |
+| `role` | string | Filter by role code (e.g. `tropos.admin`) |
+
 **Visibility scope (enforced server-side):**
 
 | Actor | Sees |
@@ -251,36 +262,44 @@ GET /api/v1/identity/users/
 
 **Response `200 OK`:**
 ```json
-[
-  {
-    "id": "uuid",
-    "username": "string",
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "is_active": true,
-    "department": {
+{
+  "page": 1,
+  "per_page": 10,
+  "num_pages": 5,
+  "count": 42,
+  "next": "http://<host>/api/v1/identity/users/?page=2",
+  "previous": null,
+  "results": [
+    {
       "id": "uuid",
-      "code": "string",
-      "name": "string"
-    },
-    "management_role": {
-      "id": "uuid",
-      "code": "department.admin",
-      "name": "Department Admin",
-      "system": "department",
-      "grants_systems": ["tropos"]
-    },
-    "system_roles": [
-      {
+      "username": "string",
+      "first_name": "string",
+      "last_name": "string",
+      "email": "string",
+      "is_active": true,
+      "department": {
         "id": "uuid",
-        "code": "tropos.admin",
-        "name": "Tropos Admin",
-        "system": "tropos"
-      }
-    ]
-  }
-]
+        "code": "string",
+        "name": "string"
+      },
+      "management_role": {
+        "id": "uuid",
+        "code": "department.admin",
+        "name": "Department Admin",
+        "system": "department",
+        "grants_systems": ["tropos"]
+      },
+      "system_roles": [
+        {
+          "id": "uuid",
+          "code": "tropos.admin",
+          "name": "Tropos Admin",
+          "system": "tropos"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 > `management_role` — the user's single management-tier role (`platform.*` or `department.*`), or `null` if none.
@@ -347,16 +366,17 @@ POST /api/v1/identity/users/create/
 **Request Body:**
 ```json
 {
-  "username": "string",           // required, unique
-  "password": "string",           // required, min 8 characters
-  "first_name": "string",         // required
-  "last_name": "string",          // required
-  "email": "string",              // required, unique
-  "department": "uuid",           // required (ignored for dept admin — auto-set to their dept)
-  "roles": ["uuid", "..."],       // required, min 1
-  "permissions": ["uuid", "..."]  // optional, direct permission assignments
+  "username": "string",        // required, unique
+  "password": "string",        // required, min 8 characters
+  "first_name": "string",      // required
+  "last_name": "string",       // required
+  "email": "string",           // required, unique
+  "department": "uuid",        // required (ignored for dept admin — auto-set to their dept)
+  "roles": ["uuid", "..."]     // required, min 1
 }
 ```
+
+> Direct permission assignment (`permission_ids`) is **not supported at creation**. The user starts with only role-derived permissions. Use [Update User](#update-user) afterward to assign direct permissions if needed.
 
 **Actor restrictions:**
 - **Dept Admin:** `department` is auto-set; cannot assign platform-level roles
@@ -408,9 +428,11 @@ PATCH /api/v1/identity/users/<user_id>/update/
 
 | Actor | Behavior |
 |---|---|
-| Superuser | Full override — replaces all permissions with `permission_ids` |
-| Platform Admin | Replaces role-derived and direct permissions with new values |
-| Dept Admin | Only replaces role-derived permissions; direct permissions untouched |
+| Superuser | Full override — deletes all permissions, re-inserts only what `permission_ids` contains |
+| Platform Admin | Re-derives `SOURCE_ROLE` perms from submitted roles; replaces `SOURCE_DIRECT` with `permission_ids` |
+| Dept Admin | Re-derives `SOURCE_ROLE` perms from submitted roles; `SOURCE_DIRECT` perms are left untouched |
+
+> **Platform Admin — direct perms on role change:** When the frontend changes a user's management role, `permission_ids` is sent as empty (`[]`), clearing all direct permissions. This is intentional — direct permissions are tied to a specific role context. If needed, they can be re-assigned after the role change.
 
 **Response `200 OK`:**
 ```json

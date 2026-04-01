@@ -4,7 +4,7 @@
 
 # from ...models import User
 # from apps.authz.permissions import HasPermission
-# from seeder.constants import IAMPermissions
+# from inventory.seeder.constants import IAMPermissions
 
 # from ...serializers.user import UpdateUserInfoSerializer,UpdateUserDepartmentSerializer
 # from ...services.user import update_user_basic,update_user_department

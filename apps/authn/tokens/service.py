@@ -23,6 +23,7 @@ def issue_user_tokens(*, user):
     access["username"] = user.username
     access["typ"] = "access"
     access["is_superuser"] = user.is_superuser
+    access["department"] = user.department.code if user.department else None
 
     # ✅ Roles (always embedded)
     role_codes = list(user.user_roles.select_related("role").values_list("role__code", flat=True))
@@ -77,7 +78,8 @@ def refresh_tokens(*, refresh_token: str):
     # ✅ Identity
     new_access["username"] = user.username
     new_access["typ"] = "access"
-    new_access["is_superuser"] = user.is_superuser 
+    new_access["is_superuser"] = user.is_superuser
+    new_access["department"] = user.department.code if user.department else None
 
     # ✅ Roles (always embedded)
     role_codes = list(user.user_roles.select_related("role").values_list("role__code", flat=True))

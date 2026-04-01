@@ -24,7 +24,19 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [departmentFilter, setDepartmentFilter] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [debouncedSearch] = useDebouncedValue(search, 300);
+
+  // Reset page when search changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.currentTarget.value);
+    setPage(1);
+  };
+
+  // Reset to page 1 whenever filters/search change
+  const setStatusFilterAndReset = (v: string | null) => { setStatusFilter(v); setPage(1); };
+  const setDepartmentFilterAndReset = (v: string | null) => { setDepartmentFilter(v); setPage(1); };
+  const setRoleFilterAndReset = (v: string | null) => { setRoleFilter(v); setPage(1); };
 
   const { data: me } = useGetMeQuery();
   const { data: departments } = useGetDepartmentsQuery();
@@ -34,6 +46,7 @@ export default function UsersPage() {
   const isPlatformLevel = me?.is_superuser || me?.roles?.some((r) => r.startsWith("platform."));
 
   const { data: users, isLoading } = useGetUsersQuery({
+    page,
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(statusFilter !== null ? { is_active: statusFilter === "true" } : {}),
     ...(departmentFilter ? { department: departmentFilter } : {}),
@@ -99,7 +112,7 @@ export default function UsersPage() {
             placeholder="Search by username or email"
             leftSection={<IconSearch size={16} />}
             value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
+            onChange={handleSearchChange}
           />
           <Select
             placeholder="Status"
@@ -109,7 +122,7 @@ export default function UsersPage() {
               { value: "false", label: "Deactivated" },
             ]}
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={setStatusFilterAndReset}
           />
           {isPlatformLevel && (
             <Select
@@ -117,7 +130,7 @@ export default function UsersPage() {
               clearable
               data={departments?.map((d) => ({ value: d.id, label: d.name })) ?? []}
               value={departmentFilter}
-              onChange={setDepartmentFilter}
+              onChange={setDepartmentFilterAndReset}
             />
           )}
           <Select
@@ -126,7 +139,7 @@ export default function UsersPage() {
             searchable
             data={roles?.map((r) => ({ value: r.code, label: r.name })) ?? []}
             value={roleFilter}
-            onChange={setRoleFilter}
+            onChange={setRoleFilterAndReset}
           />
         </Group>
       </Stack>
@@ -137,11 +150,15 @@ export default function UsersPage() {
         striped
         highlightOnHover
         fetching={isLoading}
-        minHeight={users && users.length > 0 ? undefined : 150}
+        minHeight={users && users.results.length > 0 ? undefined : 150}
         noRecordsText="No users found"
-        records={users ?? []}
+        records={users?.results ?? []}
         idAccessor="id"
         storeColumnsKey="users-table"
+        totalRecords={users?.count ?? 0}
+        recordsPerPage={users?.per_page ?? 10}
+        page={page}
+        onPageChange={setPage}
         columns={[
           {
             accessor: "username",

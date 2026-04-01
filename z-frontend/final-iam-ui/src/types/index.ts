@@ -37,10 +37,21 @@ export interface UserDetail extends User {
 }
 
 export interface UserListParams {
+  page?: number
   search?: string
   is_active?: boolean
   department?: string
   role?: string
+}
+
+export interface PaginatedUsers {
+  page: number
+  per_page: number
+  num_pages: number
+  count: number
+  next: string | null
+  previous: string | null
+  results: User[]
 }
 
 interface UserBasePayload {

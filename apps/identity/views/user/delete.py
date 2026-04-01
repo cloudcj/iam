@@ -8,7 +8,7 @@
 
 # # from apps.identity.models import User
 # # from apps.authz.permissions import HasPermission
-# # from seeder.constants import IAMPermissions
+# # from inventory.seeder.constants import IAMPermissions
 # # from ...services.user.delete import soft_delete_user
 
 
@@ -45,7 +45,7 @@
 # from apps.identity.models import User
 # from apps.identity.services.user.delete import soft_delete_user
 # from apps.authz.permissions import HasPermission
-# from seeder.constants import IAMPermissions
+# from inventory.seeder.constants import IAMPermissions
 
 
 # class DeleteUserView(APIView):

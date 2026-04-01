@@ -2,7 +2,7 @@
 # from rest_framework.views import APIView
 # from rest_framework.response import Response
 # from apps.authz.permissions import HasPermission
-# from seeder.constants import InventoryPermissions
+# from inventory.seeder.constants import InventoryPermissions
 # from apps.authn.authentication import IAMAuthentication
 
 # class ProtectedTestView(APIView):
