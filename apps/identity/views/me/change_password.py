@@ -3,6 +3,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import serializers, status
 
+from apps.authn.tokens.service import issue_user_tokens
+from apps.authn.tokens.cookies import set_auth_cookies
+
 
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField()
@@ -17,6 +20,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+    bypass_must_change_password = True
 
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
@@ -31,6 +35,12 @@ class ChangePasswordView(APIView):
             )
 
         user.set_password(data["new_password"])
-        user.save(update_fields=["password"])
+        user.must_change_password = False
+        user.save(update_fields=["password", "must_change_password"])
 
-        return Response({"detail": "Password changed successfully."})
+        # Re-issue fresh tokens with updated must_change_password flag
+        tokens = issue_user_tokens(user=user)
+
+        response = Response({"detail": "Password changed successfully."})
+        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
+        return response

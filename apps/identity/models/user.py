@@ -84,6 +84,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     # ---- Account state ----
     is_active = models.BooleanField(default=True, db_index=True)
     is_staff = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(default=False)
 
     deactivated_at = models.DateTimeField(null=True, blank=True)
 

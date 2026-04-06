@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 import Layout from '../components/layout/Layout'
 import LoginPage from '../pages/LoginPage'
+import ChangePasswordPage from '../pages/ChangePasswordPage'
 import DashboardPage from '../pages/DashboardPage'
 import UsersPage from '../pages/UsersPage'
 import DepartmentsPage from '../pages/DepartmentsPage'
@@ -15,6 +16,7 @@ import TroposDashboardPage from '../pages/tropos/TroposDashboardPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/change-password', element: <ChangePasswordPage /> },
   {
     path: '/',
     element: (

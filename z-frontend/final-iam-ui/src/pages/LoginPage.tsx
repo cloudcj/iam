@@ -31,8 +31,12 @@ export default function LoginPage() {
   const handleSubmit = async (values: typeof form.values) => {
     setError(null)
     try {
-      await login(values).unwrap()
-      navigate('/')
+      const result = await login(values).unwrap()
+      if (result.must_change_password) {
+        navigate('/change-password')
+      } else {
+        navigate('/')
+      }
     } catch (err: any) {
       setError(err?.data?.message ?? err?.data?.detail ?? 'Invalid credentials')
     }

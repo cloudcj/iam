@@ -173,9 +173,10 @@ USE_TZ = True
 # DJANGO DRF
 # --------------------------------------------------
 REST_FRAMEWORK = {
-    # PERMISSION   
+    # PERMISSION
     'DEFAULT_PERMISSION_CLASSES': (
     'rest_framework.permissions.IsAuthenticated',
+    'apps.authz.permissions.BlockIfMustChangePassword',
     # 'iam.permissions.IsNotLocked',
     # 'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',  # for browsable API login
     ),

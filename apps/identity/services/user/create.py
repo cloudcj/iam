@@ -297,6 +297,7 @@ def create_user(
         email=email or "",
         department=department,
         is_active=True,
+        must_change_password=True,
     )
 
     # --------------------------------------------------

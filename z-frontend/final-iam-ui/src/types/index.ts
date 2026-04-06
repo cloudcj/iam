@@ -84,6 +84,7 @@ export interface Me {
   first_name: string
   last_name: string
   is_superuser: boolean
+  must_change_password: boolean
   roles: string[]         // role codes e.g. ["platform.admin", "tropos.admin"]
   department: {
     id: string
@@ -92,6 +93,11 @@ export interface Me {
   }
   systems: string[]
   permissions: string[]   // permission codes
+}
+
+export interface LoginResponse {
+  detail: string
+  must_change_password: boolean
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ def issue_user_tokens(*, user):
     access["typ"] = "access"
     access["is_superuser"] = user.is_superuser
     access["department"] = user.department.code if user.department else None
+    access["must_change_password"] = user.must_change_password
 
     # ✅ Roles (always embedded)
     role_codes = list(user.user_roles.select_related("role").values_list("role__code", flat=True))
@@ -80,6 +81,7 @@ def refresh_tokens(*, refresh_token: str):
     new_access["typ"] = "access"
     new_access["is_superuser"] = user.is_superuser
     new_access["department"] = user.department.code if user.department else None
+    new_access["must_change_password"] = user.must_change_password
 
     # ✅ Roles (always embedded)
     role_codes = list(user.user_roles.select_related("role").values_list("role__code", flat=True))

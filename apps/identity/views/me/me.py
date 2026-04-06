@@ -7,6 +7,7 @@ from apps.authz.services.authorization_service import AuthorizationService
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
+    bypass_must_change_password = True
 
     def get(self, request):
         user = request.user
@@ -27,6 +28,7 @@ class MeView(APIView):
             "last_name": user.last_name,
             "email": user.email,
             "is_superuser": user.is_superuser,
+            "must_change_password": user.must_change_password,
             "roles": role_codes,
             "department": {
                 "code": user.department.code,

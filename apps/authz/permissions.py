@@ -1,6 +1,31 @@
 from rest_framework.permissions import BasePermission
 
 
+class BlockIfMustChangePassword(BasePermission):
+    """
+    Blocks access unless the user has changed their password.
+    Reads must_change_password from JWT token.
+    Allows bypass via view attribute bypass_must_change_password=True.
+    """
+
+    message = {
+        "detail": "You must change your password before accessing this resource.",
+        "code": "must_change_password",
+    }
+
+    def has_permission(self, request, view):
+        # Allow the view to bypass this check (e.g., ChangePasswordView)
+        if getattr(view, "bypass_must_change_password", False):
+            return True
+
+        # 🔐 Check JWT token for must_change_password flag
+        token = request.auth
+        if token and token.get("must_change_password"):
+            return False
+
+        return True
+
+
 class HasPermission(BasePermission):
     """
     Checks required_permission against JWT permissions[] claim.

@@ -1,10 +1,26 @@
 import { useState, useMemo } from "react";
 import {
   Modal, TextInput, PasswordInput, Stack, Select, Box,
-  Paper, Divider, Alert, ThemeIcon, Group, Text, Button,
+  Paper, Divider, Alert, ThemeIcon, Group, Text, Button, ActionIcon, Tooltip,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { IconAlertCircle, IconShield } from "@tabler/icons-react";
+import { IconAlertCircle, IconShield, IconRefresh } from "@tabler/icons-react";
+
+function generatePassword(): string {
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const special = "!@#$%^&*";
+  const all = upper + lower + digits + special;
+  const arr = [
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    special[Math.floor(Math.random() * special.length)],
+    ...Array.from({ length: 8 }, () => all[Math.floor(Math.random() * all.length)]),
+  ];
+  return arr.sort(() => Math.random() - 0.5).join("");
+}
 import {
   useCreateUserMutation,
   useGetRoleFormOptionsQuery,
@@ -189,7 +205,24 @@ export default function CreateUserModal({ opened, onClose }: Props) {
         <Stack gap="md">
 
           <TextInput required label="Username" placeholder="john.doe" {...form.getInputProps("username")} />
-          <PasswordInput required label="Password" placeholder="••••••••" {...form.getInputProps("password")} />
+          <PasswordInput
+            required
+            label="Password"
+            placeholder="••••••••"
+            leftSection={
+              <Tooltip label="Auto-generate password" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => form.setFieldValue("password", generatePassword())}
+                  type="button"
+                >
+                  <IconRefresh size={16} />
+                </ActionIcon>
+              </Tooltip>
+            }
+            {...form.getInputProps("password")}
+          />
           <TextInput required label="First Name" placeholder="John" {...form.getInputProps("first_name")} />
           <TextInput required label="Last Name" placeholder="Doe" {...form.getInputProps("last_name")} />
           <TextInput required label="Email" placeholder="john@example.com" {...form.getInputProps("email")} />

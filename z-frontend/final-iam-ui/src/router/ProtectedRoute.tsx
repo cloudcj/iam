@@ -49,6 +49,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (isLoading || isFetching) return <Center h="100vh"><Loader /></Center>
   if (!me) return <Navigate to="/login" replace />
+  if (me.must_change_password) return <Navigate to="/change-password" replace />
 
   const hasIamAccess = me.is_superuser || me.permissions.includes('iam.user.read')
   if (!hasIamAccess) return <AccessDenied />

@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query'
-import type { User, UserDetail, PaginatedUsers, Role, Permission, Policy, Department, Me, LoginRequest, CreateUserPayload, UpdateUserPayload, AuditLogParams, AuditLogResponse, RoleFormOptions, UserListParams, DashboardSummary } from '../types'
+import type { User, UserDetail, PaginatedUsers, Role, Permission, Policy, Department, Me, LoginRequest, LoginResponse, CreateUserPayload, UpdateUserPayload, AuditLogParams, AuditLogResponse, RoleFormOptions, UserListParams, DashboardSummary } from '../types'
 
 const getCsrfToken = () =>
   document.cookie
@@ -59,7 +59,7 @@ export const iamApi = createApi({
       query: () => '/me/',
       providesTags: ['Me'],
     }),
-    login: builder.mutation<{ user: Me }, LoginRequest>({
+    login: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
         url: '/auth/login/',
         method: 'POST',

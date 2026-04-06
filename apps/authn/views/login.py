@@ -90,7 +90,13 @@ class LoginView(APIView):
             request=request,
         )
 
-        response = Response({"detail": "Login successful"}, status=status.HTTP_200_OK)
+        response = Response(
+            {
+                "detail": "Login successful",
+                "must_change_password": user.must_change_password,
+            },
+            status=status.HTTP_200_OK,
+        )
         set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
         return response
 

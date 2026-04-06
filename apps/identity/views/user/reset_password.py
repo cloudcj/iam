@@ -66,6 +66,7 @@ class ResetUserPasswordView(AuditMixin, APIView):
         serializer.is_valid(raise_exception=True)
 
         target.set_password(serializer.validated_data["new_password"])
-        target.save(update_fields=["password"])
+        target.must_change_password = True
+        target.save(update_fields=["password", "must_change_password"])
 
         return Response({"detail": "Password reset successfully."})
