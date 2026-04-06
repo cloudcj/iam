@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from apps.audit.models import AuditLog
 from apps.authz.permissions import HasPermission
 from apps.common.constants.permission_codes import IAMPermissions
+from apps.common.pagination import CustomPagination
 
 
 class AuditLogListView(APIView):
@@ -41,11 +42,8 @@ class AuditLogListView(APIView):
         if date_to:
             qs = qs.filter(timestamp__date__lte=date_to)
 
-        # pagination
-        limit = min(int(request.query_params.get("limit", 50)), 200)
-        offset = int(request.query_params.get("offset", 0))
-        total = qs.count()
-        qs = qs[offset: offset + limit]
+        paginator = CustomPagination()
+        page = paginator.paginate_queryset(qs, request)
 
         data = [
             {
@@ -61,7 +59,7 @@ class AuditLogListView(APIView):
                 "ip_address": log.ip_address,
                 "timestamp": log.timestamp.isoformat(),
             }
-            for log in qs
+            for log in page
         ]
 
-        return Response({"count": total, "results": data})
+        return paginator.get_paginated_response(data)
