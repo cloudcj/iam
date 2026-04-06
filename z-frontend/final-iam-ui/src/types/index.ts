@@ -170,3 +170,53 @@ export interface AuditLogResponse {
   count: number
   results: AuditLog[]
 }
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+export interface DashboardStats {
+  total_users: number
+  active_users: number
+  inactive_users: number
+  total_departments: number
+}
+
+export interface UserByDepartment {
+  name: string
+  user_count: number
+}
+
+export interface TopActor {
+  username: string
+  name: string
+  event_count: number
+}
+
+export interface RecentActivityLog {
+  id: string
+  actor: string | null
+  actor_name: string | null
+  action: string
+  status: "success" | "failure"
+  ip_address: string | null
+  timestamp: string
+}
+
+export interface AdminActionLog {
+  id: string
+  actor: string | null
+  actor_name: string | null
+  action: string
+  target_type: string
+  status: "success" | "failure"
+  timestamp: string
+}
+
+export interface DashboardSummary {
+  stats: DashboardStats
+  users_by_department: UserByDepartment[]
+  failed_logins_7d: number
+  login_success_7d: number
+  recent_activity: RecentActivityLog[]
+  top_actors: TopActor[]
+  recent_admin_actions: AdminActionLog[]
+}

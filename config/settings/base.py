@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "apps.authn",
     "apps.authz",     # even without models
     "apps.audit",      # if you keep audit models
+    "apps.dashboard",
     # "apps.services",   # service registry (if it has models)
 
 ]

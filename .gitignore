@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+node_modules
 
 # Virtual environments
 .venv/
@@ -31,3 +32,8 @@ CLAUDE.md
 # z-frontend/
 
 tropos/
+
+.claude/
+.mcp.json
+package-lock.json
+package.json
