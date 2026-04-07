@@ -1,24 +1,19 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Center,
-  Paper,
-  Title,
-  Text,
-  TextInput,
-  PasswordInput,
-  Button,
-  Alert,
-  Stack,
+  Center, Paper, Title, Text, TextInput,
+  PasswordInput, Button, Alert, Stack,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { IconAlertCircle } from '@tabler/icons-react'
+import ReCAPTCHA from 'react-google-recaptcha'
 import { useLoginMutation } from '../services/iamApi'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [login, { isLoading }] = useLoginMutation()
   const [error, setError] = useState<string | null>(null)
+  const recaptchaRef = useRef<ReCAPTCHA>(null)
 
   const form = useForm({
     initialValues: { username: '', password: '' },
@@ -30,14 +25,23 @@ export default function LoginPage() {
 
   const handleSubmit = async (values: typeof form.values) => {
     setError(null)
+
+    const recaptcha_token = recaptchaRef.current?.getValue() ?? ''
+    if (!recaptcha_token) {
+      setError('Please complete the reCAPTCHA.')
+      return
+    }
+
     try {
-      const result = await login(values).unwrap()
+      const result = await login({ ...values, recaptcha_token }).unwrap()
+      recaptchaRef.current?.reset()
       if (result.must_change_password) {
         navigate('/change-password')
       } else {
         navigate('/')
       }
     } catch (err: any) {
+      recaptchaRef.current?.reset()
       setError(err?.data?.message ?? err?.data?.detail ?? 'Invalid credentials')
     }
   }
@@ -67,6 +71,10 @@ export default function LoginPage() {
               label="Password"
               placeholder="Enter your password"
               {...form.getInputProps('password')}
+            />
+            <ReCAPTCHA
+              ref={recaptchaRef}
+              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
             />
             <Button type="submit" fullWidth loading={isLoading} mt="xs">
               Sign in

@@ -105,6 +105,7 @@ export interface LoginResponse {
 export interface LoginRequest {
   username: string
   password: string
+  recaptcha_token: string
 }
 
 // ─── Department ──────────────────────────────────────────────────────────────

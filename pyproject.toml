@@ -17,5 +17,6 @@ dependencies = [
     "gunicorn>=24.1.1",
     "psycopg[binary]>=3.3.2",
     "python-dotenv>=1.2.1",
+    "requests>=2.33.1",
     "user-agents>=2.2.0",
 ]

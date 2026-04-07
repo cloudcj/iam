@@ -57,6 +57,8 @@ from apps.authn.throttles import LoginRateThrottle
 from apps.audit.services.services import log_action
 from apps.audit.models import AuditLog
 
+from apps.authn.recaptcha import verify_recaptcha
+
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class LoginView(APIView):
     authentication_classes = []
@@ -65,6 +67,13 @@ class LoginView(APIView):
 
     def post(self, request):
         username = request.data.get("username", "")
+
+        recaptcha_token = request.data.get("recaptcha_token", "")
+        if not verify_recaptcha(recaptcha_token):
+            return Response(
+                {"detail": "reCAPTCHA verification failed. Please try again."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             user, tokens = login(

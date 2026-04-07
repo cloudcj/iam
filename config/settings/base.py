@@ -346,3 +346,5 @@ CORS_ALLOW_CREDENTIALS = True
 # for improvement
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
 # CSRF_TRUSTED_ORIGINS=https://app.internal.local,https://iam.internal.local
+
+RECAPTCHA_SECRET_KEY = env("RECAPTCHA_SECRET_KEY")
